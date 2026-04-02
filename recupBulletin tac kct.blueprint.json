@@ -1,0 +1,1567 @@
+{
+    "name": "recupBulletin tac kct",
+    "flow": [
+        {
+            "id": 2,
+            "module": "microsoft-email:listMessages",
+            "version": 2,
+            "parameters": {
+                "__IMTCONN__": 2796353
+            },
+            "mapper": {
+                "limit": "1",
+                "folder": "/AAMkAGUzZDkxMWRkLWYyNGMtNDA5Mi1hNDg2LWE2MDM2ODZlNDI5OAAuAAAAAAD0DCJS5ucDTJkhaM2ft3X8AQBanHaFooDNS5EjY8mFcHFXAAAAAAEMAAA=",
+                "search": "From:kribi-conteneurs-terminal.com Subject:SITUATION HasAttachment:yes",
+                "orderby": "createdDateTime desc"
+            },
+            "metadata": {
+                "designer": {
+                    "x": 0,
+                    "y": 450
+                },
+                "restore": {
+                    "expect": {
+                        "folder": {
+                            "mode": "chose",
+                            "path": [
+                                "Boîte de réception"
+                            ]
+                        },
+                        "orderby": {
+                            "mode": "chose",
+                            "label": "Created Date Time - Descending"
+                        }
+                    },
+                    "parameters": {
+                        "__IMTCONN__": {
+                            "data": {
+                                "scoped": "true",
+                                "connection": "azure"
+                            },
+                            "label": "My Microsoft connection (Habib MOHAMMED IYA)"
+                        }
+                    }
+                },
+                "parameters": [
+                    {
+                        "name": "__IMTCONN__",
+                        "type": "account:azure",
+                        "label": "Connection",
+                        "required": true
+                    }
+                ],
+                "expect": [
+                    {
+                        "name": "folder",
+                        "type": "folder",
+                        "label": "Mail Folder"
+                    },
+                    {
+                        "name": "search",
+                        "type": "text",
+                        "label": "Search"
+                    },
+                    {
+                        "name": "orderby",
+                        "type": "select",
+                        "label": "Order by",
+                        "validate": {
+                            "enum": [
+                                "subject asc",
+                                "subject desc",
+                                "createdDateTime asc",
+                                "createdDateTime desc",
+                                "lastModifiedDateTime asc",
+                                "lastModifiedDateTime desc",
+                                "receivedDateTime asc",
+                                "receivedDateTime desc"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "limit",
+                        "type": "uinteger",
+                        "label": "Limit"
+                    }
+                ]
+            },
+            "onerror": [
+                {
+                    "id": 21,
+                    "module": "builtin:Ignore",
+                    "version": 1,
+                    "metadata": {
+                        "designer": {
+                            "x": 300,
+                            "y": 900
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "id": 8,
+            "module": "microsoft-email:listAttachments",
+            "version": 2,
+            "parameters": {
+                "__IMTCONN__": 2796353
+            },
+            "mapper": {
+                "limit": "3",
+                "message": "{{2.id}}"
+            },
+            "metadata": {
+                "designer": {
+                    "x": 300,
+                    "y": 300
+                },
+                "restore": {
+                    "expect": {
+                        "message": {
+                            "mode": "edit"
+                        }
+                    },
+                    "parameters": {
+                        "__IMTCONN__": {
+                            "data": {
+                                "scoped": "true",
+                                "connection": "azure"
+                            },
+                            "label": "My Microsoft connection (Habib MOHAMMED IYA)"
+                        }
+                    }
+                },
+                "parameters": [
+                    {
+                        "name": "__IMTCONN__",
+                        "type": "account:azure",
+                        "label": "Connection",
+                        "required": true
+                    }
+                ],
+                "expect": [
+                    {
+                        "name": "message",
+                        "type": "select",
+                        "label": "Email ID",
+                        "required": true
+                    },
+                    {
+                        "name": "limit",
+                        "type": "uinteger",
+                        "label": "Limit"
+                    }
+                ]
+            },
+            "onerror": [
+                {
+                    "id": 22,
+                    "module": "builtin:Ignore",
+                    "version": 1,
+                    "metadata": {
+                        "designer": {
+                            "x": 600,
+                            "y": 600
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "id": 11,
+            "module": "microsoft-email:downloadAnAttachment",
+            "version": 2,
+            "parameters": {
+                "__IMTCONN__": 2796353
+            },
+            "filter": {
+                "name": "",
+                "conditions": [
+                    [
+                        {
+                            "a": "{{8.contentType}}",
+                            "b": "pdf",
+                            "o": "text:contain:ci"
+                        }
+                    ]
+                ]
+            },
+            "mapper": {
+                "message": "{{2.id}}",
+                "attachment": "{{8.id}}"
+            },
+            "metadata": {
+                "designer": {
+                    "x": 600,
+                    "y": 150
+                },
+                "restore": {
+                    "expect": {
+                        "message": {
+                            "mode": "edit"
+                        }
+                    },
+                    "parameters": {
+                        "__IMTCONN__": {
+                            "data": {
+                                "scoped": "true",
+                                "connection": "azure"
+                            },
+                            "label": "My Microsoft connection (Habib MOHAMMED IYA)"
+                        }
+                    }
+                },
+                "parameters": [
+                    {
+                        "name": "__IMTCONN__",
+                        "type": "account:azure",
+                        "label": "Connection",
+                        "required": true
+                    }
+                ],
+                "expect": [
+                    {
+                        "mode": "edit",
+                        "name": "message",
+                        "type": "select",
+                        "label": "Email ID",
+                        "required": true
+                    },
+                    {
+                        "name": "attachment",
+                        "type": "any",
+                        "label": "Attachment ID",
+                        "required": true
+                    }
+                ]
+            },
+            "onerror": [
+                {
+                    "id": 23,
+                    "module": "builtin:Ignore",
+                    "version": 1,
+                    "metadata": {
+                        "designer": {
+                            "x": 900,
+                            "y": 300
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "id": 13,
+            "module": "google-drive:uploadAFile",
+            "version": 4,
+            "parameters": {
+                "__IMTCONN__": 2852139
+            },
+            "mapper": {
+                "data": "{{11.data}}",
+                "title": "{{2.subject}}",
+                "select": "value",
+                "convert": false,
+                "filename": "{{11.filename}}",
+                "folderId": "/1yXcR2TPwsZR2yo6Mq2PTYssbKpBqs5_Z/1oa0zfc9_EJvJIySpTlN7lC-7ZNJmOGKz/13BOBo7z3sP9HRnSI2gSTQwd82joMHV0Q",
+                "destination": "drive"
+            },
+            "metadata": {
+                "designer": {
+                    "x": 900,
+                    "y": 0
+                },
+                "restore": {
+                    "expect": {
+                        "select": {
+                            "label": "Select from the list"
+                        },
+                        "folderId": {
+                            "mode": "chose",
+                            "path": [
+                                "Synergie",
+                                "BULLETIN",
+                                "ok"
+                            ]
+                        },
+                        "destination": {
+                            "label": "My Drive"
+                        }
+                    },
+                    "parameters": {
+                        "__IMTCONN__": {
+                            "data": {
+                                "scoped": "true",
+                                "connection": "google-restricted"
+                            },
+                            "label": "My Google Restricted connection (hmabib@gmail.com)"
+                        }
+                    }
+                },
+                "parameters": [
+                    {
+                        "name": "__IMTCONN__",
+                        "type": "account:google-restricted",
+                        "label": "Connection",
+                        "required": true
+                    }
+                ],
+                "expect": [
+                    {
+                        "name": "select",
+                        "type": "select",
+                        "label": "Enter a Folder ID",
+                        "required": true,
+                        "validate": {
+                            "enum": [
+                                "map",
+                                "value"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "title",
+                        "type": "text",
+                        "label": "New File Name"
+                    },
+                    {
+                        "name": "filename",
+                        "type": "text",
+                        "label": "File Name",
+                        "required": true
+                    },
+                    {
+                        "name": "data",
+                        "type": "buffer",
+                        "label": "Data",
+                        "required": true
+                    },
+                    {
+                        "name": "convert",
+                        "type": "boolean",
+                        "label": "Convert a File",
+                        "required": true
+                    },
+                    {
+                        "name": "destination",
+                        "type": "select",
+                        "label": "New Drive Location",
+                        "required": true,
+                        "validate": {
+                            "enum": [
+                                "drive",
+                                "share",
+                                "team"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "folderId",
+                        "type": "folder",
+                        "label": "New Folder Location",
+                        "required": true
+                    }
+                ],
+                "advanced": true
+            },
+            "onerror": [
+                {
+                    "id": 30,
+                    "module": "builtin:Ignore",
+                    "version": 1,
+                    "metadata": {
+                        "designer": {
+                            "x": 1200,
+                            "y": 150
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "id": 15,
+            "module": "cloudinary:UploadResource",
+            "version": 1,
+            "parameters": {
+                "__IMTCONN__": 3141177
+            },
+            "mapper": {
+                "file": "{{11.data}}",
+                "type": "upload",
+                "folder": "Veille_PAKAZURE",
+                "file_type": "data",
+                "mime_type": "{{13.mimeType}}",
+                "resourceType": "image"
+            },
+            "metadata": {
+                "designer": {
+                    "x": 1200,
+                    "y": -150
+                },
+                "restore": {
+                    "expect": {
+                        "type": {
+                            "mode": "chose",
+                            "label": "Upload"
+                        },
+                        "folder": {
+                            "mode": "chose",
+                            "label": "Veille_PAKAZURE"
+                        },
+                        "file_type": {
+                            "label": "Base64 Encoded Data URI (~60MB)"
+                        },
+                        "resourceType": {
+                            "mode": "chose",
+                            "label": "image"
+                        },
+                        "use_filename": {
+                            "mode": "chose"
+                        },
+                        "upload_preset": {
+                            "mode": "chose"
+                        }
+                    },
+                    "parameters": {
+                        "__IMTCONN__": {
+                            "data": {
+                                "scoped": "true",
+                                "connection": "cloudinary"
+                            },
+                            "label": "My Cloudinary connection (dmjrj0wef)"
+                        }
+                    }
+                },
+                "parameters": [
+                    {
+                        "name": "__IMTCONN__",
+                        "type": "account:cloudinary",
+                        "label": "Connection",
+                        "required": true
+                    }
+                ],
+                "expect": [
+                    {
+                        "name": "file_type",
+                        "type": "select",
+                        "label": "File Type",
+                        "required": true,
+                        "validate": {
+                            "enum": [
+                                "data",
+                                "url"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "resourceType",
+                        "type": "select",
+                        "label": "Resource Type",
+                        "required": true
+                    },
+                    {
+                        "name": "upload_preset",
+                        "type": "select",
+                        "label": "Upload Preset"
+                    },
+                    {
+                        "name": "public_id",
+                        "type": "text",
+                        "label": "Public ID"
+                    },
+                    {
+                        "name": "folder",
+                        "type": "select",
+                        "label": "Folder"
+                    },
+                    {
+                        "name": "use_filename",
+                        "type": "boolean",
+                        "label": "Use Filename"
+                    },
+                    {
+                        "name": "type",
+                        "type": "select",
+                        "label": "Type",
+                        "validate": {
+                            "enum": [
+                                "private",
+                                "upload",
+                                "authenticated"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "file",
+                        "type": "buffer",
+                        "label": "File",
+                        "required": true
+                    },
+                    {
+                        "name": "mime_type",
+                        "type": "text",
+                        "label": "MIME Type",
+                        "required": true
+                    }
+                ]
+            },
+            "onerror": [
+                {
+                    "id": 27,
+                    "module": "builtin:Ignore",
+                    "version": 1,
+                    "metadata": {
+                        "designer": {
+                            "x": 1500,
+                            "y": 150
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "id": 16,
+            "module": "http:ActionSendData",
+            "version": 3,
+            "parameters": {
+                "handleErrors": true,
+                "useNewZLibDeCompress": true
+            },
+            "mapper": {
+                "ca": "",
+                "qs": [],
+                "url": "https://api.z.ai/api/paas/v4/layout_parsing",
+                "data": "{\"model\":\"glm-ocr\",\"file\":\"{{15.url}}\"}",
+                "gzip": false,
+                "method": "post",
+                "headers": [
+                    {
+                        "name": "Authorization",
+                        "value": "Bearer b4ce76ea54db451688ced62afb5bdce8.bjWir44YFuHCCWRM"
+                    },
+                    {
+                        "name": "Content-Type",
+                        "value": "application/json"
+                    }
+                ],
+                "timeout": "180",
+                "useMtls": false,
+                "authPass": "",
+                "authUser": "",
+                "bodyType": "raw",
+                "contentType": "text/plain",
+                "serializeUrl": false,
+                "shareCookies": false,
+                "parseResponse": false,
+                "followRedirect": true,
+                "useQuerystring": false,
+                "followAllRedirects": false,
+                "rejectUnauthorized": true
+            },
+            "metadata": {
+                "designer": {
+                    "x": 1500,
+                    "y": -150
+                },
+                "restore": {
+                    "expect": {
+                        "qs": {
+                            "mode": "chose"
+                        },
+                        "method": {
+                            "mode": "chose",
+                            "label": "POST"
+                        },
+                        "headers": {
+                            "mode": "chose",
+                            "items": [
+                                null,
+                                null
+                            ]
+                        },
+                        "bodyType": {
+                            "label": "Raw"
+                        },
+                        "contentType": {
+                            "label": "Text (text/plain)"
+                        }
+                    }
+                },
+                "parameters": [
+                    {
+                        "name": "handleErrors",
+                        "type": "boolean",
+                        "label": "Evaluate all states as errors (except for 2xx and 3xx )",
+                        "required": true
+                    },
+                    {
+                        "name": "useNewZLibDeCompress",
+                        "type": "hidden"
+                    }
+                ],
+                "expect": [
+                    {
+                        "name": "url",
+                        "type": "url",
+                        "label": "URL",
+                        "required": true
+                    },
+                    {
+                        "name": "serializeUrl",
+                        "type": "boolean",
+                        "label": "Serialize URL",
+                        "required": true
+                    },
+                    {
+                        "name": "method",
+                        "type": "select",
+                        "label": "Method",
+                        "required": true,
+                        "validate": {
+                            "enum": [
+                                "get",
+                                "head",
+                                "post",
+                                "put",
+                                "patch",
+                                "delete",
+                                "options"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "headers",
+                        "spec": [
+                            {
+                                "name": "name",
+                                "type": "text",
+                                "label": "Name",
+                                "required": true
+                            },
+                            {
+                                "name": "value",
+                                "type": "text",
+                                "label": "Value"
+                            }
+                        ],
+                        "type": "array",
+                        "label": "Headers"
+                    },
+                    {
+                        "name": "qs",
+                        "spec": [
+                            {
+                                "name": "name",
+                                "type": "text",
+                                "label": "Name",
+                                "required": true
+                            },
+                            {
+                                "name": "value",
+                                "type": "text",
+                                "label": "Value"
+                            }
+                        ],
+                        "type": "array",
+                        "label": "Query String"
+                    },
+                    {
+                        "name": "bodyType",
+                        "type": "select",
+                        "label": "Body type",
+                        "validate": {
+                            "enum": [
+                                "raw",
+                                "x_www_form_urlencoded",
+                                "multipart_form_data"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "parseResponse",
+                        "type": "boolean",
+                        "label": "Parse response",
+                        "required": true
+                    },
+                    {
+                        "name": "authUser",
+                        "type": "text",
+                        "label": "User name"
+                    },
+                    {
+                        "name": "authPass",
+                        "type": "password",
+                        "label": "Password"
+                    },
+                    {
+                        "name": "timeout",
+                        "type": "uinteger",
+                        "label": "Timeout",
+                        "validate": {
+                            "max": 300,
+                            "min": 1
+                        }
+                    },
+                    {
+                        "name": "shareCookies",
+                        "type": "boolean",
+                        "label": "Share cookies with other HTTP modules",
+                        "required": true
+                    },
+                    {
+                        "name": "ca",
+                        "type": "cert",
+                        "label": "Self-signed certificate"
+                    },
+                    {
+                        "name": "rejectUnauthorized",
+                        "type": "boolean",
+                        "label": "Reject connections that are using unverified (self-signed) certificates",
+                        "required": true
+                    },
+                    {
+                        "name": "followRedirect",
+                        "type": "boolean",
+                        "label": "Follow redirect",
+                        "required": true
+                    },
+                    {
+                        "name": "useQuerystring",
+                        "type": "boolean",
+                        "label": "Disable serialization of multiple same query string keys as arrays",
+                        "required": true
+                    },
+                    {
+                        "name": "gzip",
+                        "type": "boolean",
+                        "label": "Request compressed content",
+                        "required": true
+                    },
+                    {
+                        "name": "useMtls",
+                        "type": "boolean",
+                        "label": "Use Mutual TLS",
+                        "required": true
+                    },
+                    {
+                        "name": "contentType",
+                        "type": "select",
+                        "label": "Content type",
+                        "validate": {
+                            "enum": [
+                                "text/plain",
+                                "application/json",
+                                "application/xml",
+                                "text/xml",
+                                "text/html",
+                                "custom"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "data",
+                        "type": "buffer",
+                        "label": "Request content"
+                    },
+                    {
+                        "name": "followAllRedirects",
+                        "type": "boolean",
+                        "label": "Follow all redirect",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        {
+            "id": 17,
+            "module": "openai-gpt-3:CreateCompletion",
+            "version": 1,
+            "parameters": {
+                "__IMTCONN__": 2793277
+            },
+            "filter": null,
+            "mapper": {
+                "model": "gpt-5.4-mini",
+                "top_p": "1",
+                "select": "chat",
+                "messages": [
+                    {
+                        "role": "system",
+                        "content": "Tu es un parser expert de rapports journaliers KCT (Kribi Container Terminal — KRIBI CONTENEURS TERMINAL CAMEROUN). Tu reçois un objet JSON issu d'un OCR structuré (GLM OCR) contenant les champs : id, request_id, created, model, data_info (num_pages), layout_details (liste de blocs avec index, label, native_label, content HTML/texte, bbox_2d), md_results (markdown brut de secours).\nevite d'inventer \nOBJECTIF : Extraire TOUS les indicateurs opérationnels du rapport KCT et retourner UNIQUEMENT un JSON strict.\n\nRÈGLES ABSOLUES DE SORTIE :\n- Retourne UNIQUEMENT un objet JSON brut.\n- Aucun texte avant.\n- Aucun texte après.\n- Aucun markdown.\n- Aucun bloc de code.\n- Aucune explication.\n- Aucun commentaire.\n- Aucune clé enveloppe comme \"result\", \"output\", \"data\", \"response\".\n- Aucun JSON encodé sous forme de chaîne.\n- Aucun échappement supplémentaire inutile.\n- La réponse finale doit être un JSON minifié sur une seule ligne.\n- La réponse doit commencer par { et se terminer par }.\n- Tous les nombres restent des nombres JSON.\n- Tous les tableaux restent de vrais tableaux JSON.\n- Tous les objets restent de vrais objets JSON.\n- Si une valeur texte est absente : \"\".\n- Si une valeur numérique est absente : 0.\n- Si un tableau est absent : [].════════════════════════════\nSECTION 1 — MÉTADONNÉES\n════════════════════════════════\n- doc_id : champ \"id\" de l'objet JSON racine\n- request_id : champ \"request_id\"\n- model_ocr : champ \"model\"\n- num_pages : data_info.num_pages\n- created_timestamp : champ \"created\" (entier Unix)\n- document_numero : extraire depuis le texte du premier tableau header, ex: \"KCT-PLN-RAP-004\"\n\nDATE DU RAPPORT (date_rapport) — extraire avec cette priorité :\n  1. Phrase \"Dernier camion sorti le DD/MM/YYYY\" dans les tableaux TEMPS D'OPERATION → convertir DD/MM/YYYY en YYYY-MM-DD\n  2. Si absent : date ATD la plus récente parmi tous les navires appareillés (ex: \"23/03\" + contexte de l'année)\n  3. Si absent : date ATB la plus récente parmi tous les navires en opération\n  4. Sinon → \"\"\n\n- heure_dernier_camion_sorti_raw : la valeur brute heure du dernier camion (ex: \"01:44\")\n- date_rapport_source : indiquer d'où vient la date (\"ttt_ops\" | \"navire_appareille_atd\" | \"navire_operation_atb\" | \"inconnu\")\n\n════════════════════════════════\nSECTION 2 — VOLUMES (TEUs)\n════════════════════════════════\nTableau \"VOLUMES (TEU5)\" ou \"VOLUMES (TEUS)\" — 2 colonnes : \"Depuis 1er du Mois\" et \"Forecast\"\n\nATTENTION : Dans ce tableau, la structure exacte est :\n  Ligne 1 → Import\n  Ligne 2 → Export\n  Ligne 3 → [valeur sans libellé explicite] = Transbo principal (ligne entre Export et le libellé \"Transbo\")\n  Ligne 4 → \"Transbo\" (libellé uniquement, valeur vide)\n  Ligne 5 → Pleins I+E+T (en italique, tiret = 0)\n  Ligne 6 → Vides I+E+T\n  Ligne 7 → Total (en italique)\n\nExtraire :\n- import_teu : ligne Import, col \"Depuis 1er du Mois\"\n- export_teu : ligne Export, col \"Depuis 1er du Mois\"\n- transbo_teu : ligne 3 (valeur sans libellé), col \"Depuis 1er du Mois\"\n- pleins_total_teu : ligne \"Pleins I+E+T\" (souvent \"-\" → 0)\n- vides_teu : ligne \"Vides I+E+T\"\n- total_teu : ligne \"Total\" (valeur en italique)\n\nForecasts :\n- import_forecast, export_forecast, transbo_forecast, pleins_forecast, vides_forecast, total_forecast\n\nCalculs dérivés :\n- total_teu_calcule : import_teu + export_teu + transbo_teu + vides_teu\n- taux_realisation_total_pct : ROUND(total_teu / total_forecast * 100, 1) si total_forecast > 0, sinon 0\n- ecart_total_forecast : total_teu - total_forecast\n\n════════════════════════════════\nSECTION 3 — ESCALES PAR ARMATEUR\n════════════════════════════════\nTableau \"Nombre d'escales\" — colonnes PREVUES et REALISEES\n\nExtraire pour chaque armateur :\n- escales_cma_cgm_prevues, escales_cma_cgm_realisees\n- escales_hapag_lloyd_prevues, escales_hapag_lloyd_realisees\n- escales_msc_prevues, escales_msc_realisees\n- escales_maersk_prevues, escales_maersk_realisees\n- escales_autres_prevues, escales_autres_realisees  ← ligne \"MARGUISA+OTHERS\" ou équivalent\n- escales_total_prevues, escales_total_realisees\n\nCalculs dérivés :\n- taux_realisation_escales_pct : ROUND(escales_total_realisees / escales_total_prevues * 100, 1) si > 0, sinon 0\n- escales_cma_cgm_taux_pct : ROUND(cma_realisees / cma_prevues * 100, 1)\n- escales_msc_taux_pct : idem pour MSC\n\n════════════════════════════════\nSECTION 4 — PARC CONTENEURS\n════════════════════════════════\nTableau \"TOTAL CONTENEURS SUR PARC\" :\n- Champ \"X / Y TEUS\" → parc_conteneurs_utilise = X (int), parc_conteneurs_total = Y (int)\n- taux_occupation_parc : entier %\n- Champ \"X / Y Plugs\" → reefers_utilises = X (int), reefers_total = Y (int)\n- taux_occupation_reefers : entier %\n\nCalcul :\n- parc_conteneurs_disponible : parc_conteneurs_total - parc_conteneurs_utilise\n- reefers_disponibles : reefers_total - reefers_utilises\n\n════════════════════════════════\nSECTION 5 — IMPORTS (Opérations terrestres — détail par escale)\n════════════════════════════════\nTableau ESCALE / ETA / TOTAL TC / TOTAL TEU :\n- import_escales_detail : tableau d'objets, UN par ligne escale (hors ligne TOTAUX) :\n  [{ \"nom\": \"\", \"eta\": \"DD/MM\", \"total_tc\": 0, \"total_teu\": 0 }]\n\n- imports_total_tc : ligne TOTAUX, col TOTAL TC\n- imports_total_teu : ligne TOTAUX, col TOTAL TEU\n\n════════════════════════════════\nSECTION 6 — EXPORTS\n════════════════════════════════\nTableau EXPORTS — colonnes : ESCALES / Prevision / Reception / TOTAL RECU (TEU) :\n- export_escales_detail : tableau d'objets :\n  [{ \"nom\": \"\", \"prevision\": 0, \"reception\": 0, \"total_teu\": 0 }]\n\n- exports_total_prevision : ligne Totaux\n- exports_total_reception : ligne Totaux\n- exports_total_teu : ligne Totaux\n\n════════════════════════════════\nSECTION 7 — TRANSBORDEMENT\n════════════════════════════════\nTableau TRANSBU / TRANSBO — colonnes : ESCALES / Décharge / Charge / Total (TEU) :\n\nATTENTION : La première ligne de données (libellé \"ESCALES\") n'est PAS le total — c'est une première escale cumulative. Ne pas la confondre avec la ligne \"Totaux\".\n\n- transbo_escales_detail : tableau d'objets (TOUTES les lignes sauf Totaux) :\n  [{ \"nom\": \"\", \"decharge\": 0, \"charge\": 0, \"total_teu\": 0 }]\n\n- transbo_total_decharge : ligne Totaux\n- transbo_total_charge : ligne Totaux\n- transbo_total_teu : ligne Totaux\n\n════════════════════════════════\nSECTION 8 — EXPLOITANTS (par type de conteneur sur parc)\n════════════════════════════════\nTableau EXPLOTTANTS — colonnes : 20'std / 40'std / 40'htc / 20'spe / 40'spe / 20'rf / 40'rf\n\nPour chaque exploitant (CMA, HLC, MSK, MGS) :\n- exp_CMA_20std, exp_CMA_40std, exp_CMA_40htc, exp_CMA_20spe, exp_CMA_40spe, exp_CMA_20rf, exp_CMA_40rf\n- exp_HLC_20std, exp_HLC_40std, exp_HLC_40htc, exp_HLC_20spe, exp_HLC_40spe, exp_HLC_20rf, exp_HLC_40rf\n- exp_MSK_20std, exp_MSK_40std, exp_MSK_40htc, exp_MSK_20spe, exp_MSK_40spe, exp_MSK_20rf, exp_MSK_40rf\n- exp_MGS_20std, exp_MGS_40std, exp_MGS_40htc, exp_MGS_20spe, exp_MGS_40spe, exp_MGS_20rf, exp_MGS_40rf\n\nTotaux calculés par exploitant (somme de tous les types) :\n- exp_CMA_total, exp_HLC_total, exp_MSK_total, exp_MGS_total\n- exp_grand_total : somme des 4 exploitants\n\nTotaux calculés par type de conteneur (somme des 4 exploitants) :\n- total_20std, total_40std, total_40htc, total_20spe, total_40spe, total_20rf, total_40rf\n\n████ Aussi un tableau de synthèse lisible :\n- exploitants_detail : [{\"exploitant\":\"CMA\",\"20std\":0,\"40std\":0,\"40htc\":0,\"20spe\":0,\"40spe\":0,\"20rf\":0,\"40rf\":0,\"total\":0}, ...]\n\n════════════════════════════════\nSECTION 9 — GATE / TTT\n════════════════════════════════\nTableau TTT - TRUCK TURN TIME (données des 24 dernières heures) :\n- ttt_duree_minutes : \"DUREE MOVENIE\" hh:mm:ss → minutes entières arrondi. Ex \"00:38:16\" → 38. Si \"00:00:00\" → 0\n- ttt_total_camions : \"TOTAL CAMIONS\"\n- ttt_total_conteneurs : \"TOTAL CONTENEURS\"\n\nTableau ENTREES / SORTIES :\n- gate_entrees_pleins : colonne PLEINS, ligne ENTREES\n- gate_entrees_vides : colonne VIDES, ligne ENTREES\n- gate_sorties_pleins : colonne PLEINS, ligne SORTIES\n- gate_sorties_vides : colonne VIDES, ligne SORTIES\n- gate_total_entrees : gate_entrees_pleins + gate_entrees_vides\n- gate_total_sorties : gate_sorties_pleins + gate_sorties_vides\n- gate_total_mouvements : gate_total_entrees + gate_total_sorties\n\nTableau TEMPS D'OPERATION :\n- ops_1er_camion_entre : \"1er CAMION ENTRE\" → string \"HH:MM\"\n- ops_1er_camion_sorti : \"1er CAMION SORTI\" → string \"HH:MM\"\n- ops_dernier_camion_sorti : \"DERNIER CAMION SORTI\" → string \"HH:MM\"\n- ops_date_dernier_camion_raw : texte brut de la phrase finale ex: \"24/03/2026 à 01:44\"\n- ops_date_dernier_camion_iso : convertir DD/MM/YYYY → YYYY-MM-DD\n\n════════════════════════════════\nSECTION 10 — NAVIRES APPAREILLÉS\n════════════════════════════════\nTableau NAVIRES APPAREILLES (section OPERATIONS MARITIMES) :\nColonnes : N° / Navire / Voyage / LOA / Shipping / Service / Last Port / Next Port / ATB / ATC / ATD / T.Units / Net Prod\n\n- navires_appareilles : tableau d'objets, UN par navire (ignorer lignes vides ou \"-\") :\n[{\n  \"numero\": 0,\n  \"nom\": \"\",\n  \"voyage\": \"\",\n  \"loa\": \"\",\n  \"shipping\": \"\",\n  \"service\": \"\",\n  \"last_port\": \"\",\n  \"next_port\": \"\",\n  \"atb\": \"\",\n  \"atc\": \"\",\n  \"atd\": \"\",\n  \"t_units\": 0,\n  \"net_prod\": 0.0\n}]\n\n- nb_navires_appareilles : count du tableau\n\n════════════════════════════════\nSECTION 11 — NAVIRES EN OPÉRATION\n════════════════════════════════\nTableau 2e section maritime (navires still working) :\nColonnes : N° / Navire / Voyage / LOA / Shipping / Service / Last Port / Next Port / ATA PSTN / ATB / ETC / T.Units / Rem.Units / Net Prod\n\n- navires_en_operation : tableau d'objets :\n[{\n  \"numero\": 0,\n  \"nom\": \"\",\n  \"voyage\": \"\",\n  \"loa\": \"\",\n  \"shipping\": \"\",\n  \"service\": \"\",\n  \"last_port\": \"\",\n  \"next_port\": \"\",\n  \"ata_pstn\": \"\",\n  \"atb\": \"\",\n  \"etc\": \"\",\n  \"t_units\": 0,\n  \"rem_units\": 0,\n  \"net_prod\": 0.0,\n  \"pct_complete\": 0.0\n}]\nNote : pct_complete = ROUND((t_units - rem_units) / t_units * 100, 1) si t_units > 0\n\n- nb_navires_en_operation : count du tableau\n\n════════════════════════════════\nSECTION 12 — NAVIRES ATTENDUS\n════════════════════════════════\nTableau 3e section maritime (navires à venir) :\nColonnes : N° / Navire / Voyage / LOA / Shipping / Service / Last Port / Next Port / ETA ou ATA / ETB / ETC / T.Units\n\n- navires_attendus : tableau d'objets :\n[{\n  \"numero\": 0,\n  \"nom\": \"\",\n  \"voyage\": \"\",\n  \"loa\": \"\",\n  \"shipping\": \"\",\n  \"service\": \"\",\n  \"last_port\": \"\",\n  \"next_port\": \"\",\n  \"eta\": \"\",\n  \"etb\": \"\",\n  \"etc\": \"\",\n  \"t_units_str\": \"\",\n  \"t_units_prevu\": 0\n}]\nNote : t_units_prevu = extraire la partie numérique gauche de t_units_str (ex: \"6109/TBC\" → 6109, \"TBC\" → 0)\n\n- nb_navires_attendus : count du tableau\n\n════════════════════════════════\nSECTION 13 — KPIs GLOBAUX CALCULÉS\n════════════════════════════════\n- kpi_net_prod_moy_appareilles : moyenne des net_prod des navires appareillés (ignorer 0), arrondi 2 décimales\n- kpi_net_prod_moy_operation : moyenne des net_prod des navires en opération (ignorer 0), arrondi 2 décimales\n- kpi_teu_total_maritimes_prevu : somme des t_units de tous navires attendus (t_units_prevu uniquement)\n- kpi_teu_restant_operation : somme des rem_units de tous navires en opération\n- kpi_utilisation_globale_pct : ROUND(parc_conteneurs_utilise / parc_conteneurs_total * 100, 1) si total > 0\n- kpi_ttt_flag : \"normal\" si ttt_duree_minutes entre 20 et 60, \"rapide\" si < 20, \"lent\" si > 60, \"ferme\" si = 0\n- kpi_gate_ratio_pleins_entrees_pct : ROUND(gate_entrees_pleins / gate_total_entrees * 100, 1) si > 0\n\n════════════════════════════════\nFORMAT JSON DE SORTIE COMPLET\n════════════════════════════════\n\nRetourne UNIQUEMENT ce JSON (sans texte avant, sans texte après, sans ```json) :\n\n{\n  \"doc_id\": \"\",\n  \"request_id\": \"\",\n  \"model_ocr\": \"\",\n  \"num_pages\": 0,\n  \"created_timestamp\": 0,\n  \"document_numero\": \"\",\n  \"date_rapport\": \"\",\n  \"date_rapport_source\": \"\",\n  \"heure_dernier_camion_sorti_raw\": \"\",\n  \"ops_date_dernier_camion_raw\": \"\",\n  \"ops_date_dernier_camion_iso\": \"\",\n\n  \"import_teu\": 0,\n  \"export_teu\": 0,\n  \"transbo_teu\": 0,\n  \"pleins_total_teu\": 0,\n  \"vides_teu\": 0,\n  \"total_teu\": 0,\n  \"total_teu_calcule\": 0,\n  \"import_forecast\": 0,\n  \"export_forecast\": 0,\n  \"transbo_forecast\": 0,\n  \"pleins_forecast\": 0,\n  \"vides_forecast\": 0,\n  \"total_forecast\": 0,\n  \"taux_realisation_total_pct\": 0.0,\n  \"ecart_total_forecast\": 0,\n\n  \"escales_cma_cgm_prevues\": 0, \"escales_cma_cgm_realisees\": 0,\n  \"escales_hapag_lloyd_prevues\": 0, \"escales_hapag_lloyd_realisees\": 0,\n  \"escales_msc_prevues\": 0, \"escales_msc_realisees\": 0,\n  \"escales_maersk_prevues\": 0, \"escales_maersk_realisees\": 0,\n  \"escales_autres_prevues\": 0, \"escales_autres_realisees\": 0,\n  \"escales_total_prevues\": 0, \"escales_total_realisees\": 0,\n  \"taux_realisation_escales_pct\": 0.0,\n  \"escales_cma_cgm_taux_pct\": 0.0,\n  \"escales_msc_taux_pct\": 0.0,\n\n  \"parc_conteneurs_utilise\": 0,\n  \"parc_conteneurs_total\": 0,\n  \"parc_conteneurs_disponible\": 0,\n  \"taux_occupation_parc\": 0,\n  \"reefers_utilises\": 0,\n  \"reefers_total\": 0,\n  \"reefers_disponibles\": 0,\n  \"taux_occupation_reefers\": 0,\n\n  \"import_escales_detail\": [],\n  \"imports_total_tc\": 0,\n  \"imports_total_teu\": 0,\n\n  \"export_escales_detail\": [],\n  \"exports_total_prevision\": 0,\n  \"exports_total_reception\": 0,\n  \"exports_total_teu\": 0,\n\n  \"transbo_escales_detail\": [],\n  \"transbo_total_decharge\": 0,\n  \"transbo_total_charge\": 0,\n  \"transbo_total_teu\": 0,\n\n  \"exp_CMA_20std\": 0, \"exp_CMA_40std\": 0, \"exp_CMA_40htc\": 0,\n  \"exp_CMA_20spe\": 0, \"exp_CMA_40spe\": 0, \"exp_CMA_20rf\": 0, \"exp_CMA_40rf\": 0,\n  \"exp_CMA_total\": 0,\n  \"exp_HLC_20std\": 0, \"exp_HLC_40std\": 0, \"exp_HLC_40htc\": 0,\n  \"exp_HLC_20spe\": 0, \"exp_HLC_40spe\": 0, \"exp_HLC_20rf\": 0, \"exp_HLC_40rf\": 0,\n  \"exp_HLC_total\": 0,\n  \"exp_MSK_20std\": 0, \"exp_MSK_40std\": 0, \"exp_MSK_40htc\": 0,\n  \"exp_MSK_20spe\": 0, \"exp_MSK_40spe\": 0, \"exp_MSK_20rf\": 0, \"exp_MSK_40rf\": 0,\n  \"exp_MSK_total\": 0,\n  \"exp_MGS_20std\": 0, \"exp_MGS_40std\": 0, \"exp_MGS_40htc\": 0,\n  \"exp_MGS_20spe\": 0, \"exp_MGS_40spe\": 0, \"exp_MGS_20rf\": 0, \"exp_MGS_40rf\": 0,\n  \"exp_MGS_total\": 0,\n  \"exp_grand_total\": 0,\n  \"total_20std\": 0, \"total_40std\": 0, \"total_40htc\": 0,\n  \"total_20spe\": 0, \"total_40spe\": 0, \"total_20rf\": 0, \"total_40rf\": 0,\n  \"exploitants_detail\": [],\n\n  \"ttt_duree_minutes\": 0,\n  \"ttt_total_camions\": 0,\n  \"ttt_total_conteneurs\": 0,\n  \"gate_entrees_pleins\": 0,\n  \"gate_entrees_vides\": 0,\n  \"gate_sorties_pleins\": 0,\n  \"gate_sorties_vides\": 0,\n  \"gate_total_entrees\": 0,\n  \"gate_total_sorties\": 0,\n  \"gate_total_mouvements\": 0,\n  \"ops_1er_camion_entre\": \"\",\n  \"ops_1er_camion_sorti\": \"\",\n  \"ops_dernier_camion_sorti\": \"\",\n\n  \"navires_appareilles\": [],\n  \"nb_navires_appareilles\": 0,\n\n  \"navires_en_operation\": [],\n  \"nb_navires_en_operation\": 0,\n\n  \"navires_attendus\": [],\n  \"nb_navires_attendus\": 0,\n\n  \"kpi_net_prod_moy_appareilles\": 0.0,\n  \"kpi_net_prod_moy_operation\": 0.0,\n  \"kpi_teu_total_maritimes_prevu\": 0,\n  \"kpi_teu_restant_operation\": 0,\n  \"kpi_utilisation_globale_pct\": 0.0,\n  \"kpi_ttt_flag\": \"\",\n  \"kpi_gate_ratio_pleins_entrees_pct\": 0.0\n}"
+                    },
+                    {
+                        "role": "user",
+                        "content": "{{toString(16.data)}}"
+                    }
+                ],
+                "max_tokens": "9048",
+                "temperature": "0.1",
+                "n_completions": "1",
+                "response_format": "text"
+            },
+            "metadata": {
+                "designer": {
+                    "x": 1800,
+                    "y": 0
+                },
+                "restore": {
+                    "expect": {
+                        "stop": {
+                            "mode": "chose"
+                        },
+                        "model": {
+                            "mode": "chose",
+                            "label": "gpt-5.4-mini (system)"
+                        },
+                        "select": {
+                            "label": "Create a Chat Completion (GPT and o1 models)"
+                        },
+                        "messages": {
+                            "mode": "chose",
+                            "items": [
+                                {
+                                    "role": {
+                                        "mode": "chose",
+                                        "label": "Developer / System"
+                                    }
+                                },
+                                {
+                                    "role": {
+                                        "mode": "chose",
+                                        "label": "User"
+                                    }
+                                }
+                            ]
+                        },
+                        "logit_bias": {
+                            "mode": "chose"
+                        },
+                        "tool_choice": {
+                            "mode": "chose",
+                            "label": "Empty"
+                        },
+                        "response_format": {
+                            "mode": "chose",
+                            "label": "Text"
+                        },
+                        "reasoning_effort": {
+                            "mode": "chose",
+                            "label": "Empty"
+                        },
+                        "additionalParameters": {
+                            "mode": "chose"
+                        }
+                    },
+                    "parameters": {
+                        "__IMTCONN__": {
+                            "data": {
+                                "scoped": "true",
+                                "connection": "openai-gpt-3"
+                            },
+                            "label": "My OpenAI connection"
+                        }
+                    }
+                },
+                "parameters": [
+                    {
+                        "name": "__IMTCONN__",
+                        "type": "account:openai-gpt-3",
+                        "label": "Connection",
+                        "required": true
+                    }
+                ],
+                "expect": [
+                    {
+                        "name": "select",
+                        "type": "select",
+                        "label": "Select Method",
+                        "required": true,
+                        "validate": {
+                            "enum": [
+                                "chat",
+                                "prompt"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "temperature",
+                        "type": "number",
+                        "label": "Temperature",
+                        "validate": {
+                            "max": 2,
+                            "min": 0
+                        }
+                    },
+                    {
+                        "name": "top_p",
+                        "type": "number",
+                        "label": "Top P",
+                        "validate": {
+                            "max": 1,
+                            "min": 0
+                        }
+                    },
+                    {
+                        "name": "n_completions",
+                        "type": "number",
+                        "label": "Number"
+                    },
+                    {
+                        "name": "frequency_penalty",
+                        "type": "number",
+                        "label": "Frequency Penalty",
+                        "validate": {
+                            "max": 2,
+                            "min": -2
+                        }
+                    },
+                    {
+                        "name": "presence_penalty",
+                        "type": "number",
+                        "label": "Presence Penalty",
+                        "validate": {
+                            "max": 2,
+                            "min": -2
+                        }
+                    },
+                    {
+                        "name": "logit_bias",
+                        "spec": {
+                            "name": "value",
+                            "spec": [
+                                {
+                                    "name": "token",
+                                    "type": "text",
+                                    "label": "Token ID",
+                                    "required": true
+                                },
+                                {
+                                    "name": "probability",
+                                    "type": "number",
+                                    "label": "Probability",
+                                    "required": true,
+                                    "validate": {
+                                        "max": 100,
+                                        "min": -100
+                                    }
+                                }
+                            ],
+                            "type": "collection",
+                            "label": "Token Probability"
+                        },
+                        "type": "array",
+                        "label": "Token Probability"
+                    },
+                    {
+                        "name": "seed",
+                        "type": "integer",
+                        "label": "Seed"
+                    },
+                    {
+                        "name": "tool_choice",
+                        "type": "select",
+                        "label": "Tool Choice",
+                        "validate": {
+                            "enum": [
+                                "none",
+                                "auto",
+                                "required"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "stop",
+                        "spec": {
+                            "name": "value",
+                            "type": "text",
+                            "label": "Stop Sequence"
+                        },
+                        "type": "array",
+                        "label": "Stop Sequences",
+                        "validate": {
+                            "maxItems": 4
+                        }
+                    },
+                    {
+                        "name": "additionalParameters",
+                        "spec": {
+                            "name": "value",
+                            "spec": [
+                                {
+                                    "name": "key",
+                                    "type": "text",
+                                    "label": "Parameter Name",
+                                    "required": true
+                                },
+                                {
+                                    "name": "type",
+                                    "type": "select",
+                                    "label": "Input Type",
+                                    "options": [
+                                        {
+                                            "label": "Text",
+                                            "value": "text",
+                                            "nested": [
+                                                {
+                                                    "name": "value",
+                                                    "type": "text",
+                                                    "label": "Parameter Value"
+                                                }
+                                            ],
+                                            "default": true
+                                        },
+                                        {
+                                            "label": "Number",
+                                            "value": "number",
+                                            "nested": [
+                                                {
+                                                    "name": "value",
+                                                    "type": "number",
+                                                    "label": "Parameter Value"
+                                                }
+                                            ]
+                                        },
+                                        {
+                                            "label": "Boolean",
+                                            "value": "boolean",
+                                            "nested": [
+                                                {
+                                                    "name": "value",
+                                                    "type": "boolean",
+                                                    "label": "Parameter Value"
+                                                }
+                                            ]
+                                        },
+                                        {
+                                            "label": "Date",
+                                            "value": "date",
+                                            "nested": [
+                                                {
+                                                    "name": "value",
+                                                    "type": "date",
+                                                    "label": "Parameter Value"
+                                                }
+                                            ]
+                                        },
+                                        {
+                                            "label": "Any",
+                                            "value": "any",
+                                            "nested": [
+                                                {
+                                                    "name": "value",
+                                                    "type": "any",
+                                                    "label": "Parameter Value"
+                                                }
+                                            ]
+                                        }
+                                    ]
+                                }
+                            ],
+                            "type": "collection",
+                            "label": "Input Parameter"
+                        },
+                        "type": "array",
+                        "label": "Other Input Parameters"
+                    },
+                    {
+                        "name": "model",
+                        "type": "select",
+                        "label": "Model",
+                        "required": true
+                    },
+                    {
+                        "name": "max_tokens",
+                        "type": "uinteger",
+                        "label": "Max Output Tokens"
+                    },
+                    {
+                        "name": "messages",
+                        "spec": {
+                            "name": "value",
+                            "spec": [
+                                {
+                                    "name": "role",
+                                    "type": "select",
+                                    "label": "Role",
+                                    "options": {
+                                        "store": [
+                                            {
+                                                "label": "User",
+                                                "value": "user",
+                                                "nested": [
+                                                    {
+                                                        "help": "Text content of the message on behalf of the selected __Role__.",
+                                                        "name": "content",
+                                                        "type": "text",
+                                                        "label": "Text Content"
+                                                    }
+                                                ],
+                                                "default": true
+                                            },
+                                            {
+                                                "label": "Assistant",
+                                                "value": "assistant",
+                                                "nested": [
+                                                    {
+                                                        "help": "Text content of the message on behalf of the selected __Role__.",
+                                                        "name": "content",
+                                                        "type": "text",
+                                                        "label": "Text Content"
+                                                    },
+                                                    {
+                                                        "mode": "edit",
+                                                        "name": "tool_calls",
+                                                        "spec": {
+                                                            "spec": [
+                                                                {
+                                                                    "name": "type",
+                                                                    "type": "hidden",
+                                                                    "default": "function"
+                                                                },
+                                                                {
+                                                                    "help": "Map this directly from the output of a previous **Create a Completion** module. Look for `Choices[]: Message.Tool Calls[]: ID`.",
+                                                                    "name": "id",
+                                                                    "type": "text",
+                                                                    "label": "Tool call ID"
+                                                                },
+                                                                {
+                                                                    "name": "function",
+                                                                    "spec": [
+                                                                        {
+                                                                            "help": "The name of the function previously called.",
+                                                                            "name": "name",
+                                                                            "type": "text",
+                                                                            "label": "Name",
+                                                                            "required": true
+                                                                        },
+                                                                        {
+                                                                            "help": "The arguments previously output by the AI.",
+                                                                            "name": "arguments",
+                                                                            "type": "text",
+                                                                            "label": "Arguments",
+                                                                            "required": true
+                                                                        }
+                                                                    ],
+                                                                    "type": "collection",
+                                                                    "label": "Function"
+                                                                }
+                                                            ],
+                                                            "type": "collection",
+                                                            "label": "Tool Call"
+                                                        },
+                                                        "type": "array",
+                                                        "label": "Tool Calls",
+                                                        "labels": {
+                                                            "add": "Add tool call"
+                                                        },
+                                                        "mappable": {
+                                                            "help": "You can map the entire `Choices[]: Message.Tool Calls` array from a previous Create a Completion module here."
+                                                        }
+                                                    }
+                                                ]
+                                            },
+                                            {
+                                                "label": "Developer / System",
+                                                "value": "system",
+                                                "nested": [
+                                                    {
+                                                        "help": "Text content of the message on behalf of the selected __Role__.",
+                                                        "name": "content",
+                                                        "type": "text",
+                                                        "label": "Text Content"
+                                                    }
+                                                ]
+                                            },
+                                            {
+                                                "label": "Tool",
+                                                "value": "tool",
+                                                "nested": [
+                                                    {
+                                                        "help": "The return of the function. This role should only be used when you have processed a previous function call and want to send the output of the function execution back to the AI.",
+                                                        "name": "content",
+                                                        "type": "text",
+                                                        "label": "Text Content",
+                                                        "required": true
+                                                    },
+                                                    {
+                                                        "help": "Map this directly from the output of a previous **Create a Completion** module. Look for `Choices[]: Message.Tool Calls[]: ID`.",
+                                                        "name": "tool_call_id",
+                                                        "type": "text",
+                                                        "label": "Tool Call ID.",
+                                                        "required": true
+                                                    }
+                                                ]
+                                            }
+                                        ]
+                                    },
+                                    "required": true
+                                }
+                            ],
+                            "type": "collection",
+                            "label": "Message"
+                        },
+                        "type": "array",
+                        "label": "Messages",
+                        "required": true
+                    },
+                    {
+                        "name": "response_format",
+                        "type": "select",
+                        "label": "Response Format",
+                        "validate": {
+                            "enum": [
+                                "text",
+                                "json_object"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "reasoning_effort",
+                        "type": "select",
+                        "label": "Reasoning Effort",
+                        "validate": {
+                            "enum": [
+                                "minimal",
+                                "low",
+                                "medium",
+                                "high"
+                            ]
+                        }
+                    }
+                ],
+                "interface": [
+                    {
+                        "name": "result",
+                        "type": "any",
+                        "label": "Result"
+                    },
+                    {
+                        "name": "id",
+                        "type": "text",
+                        "label": "ID"
+                    },
+                    {
+                        "name": "object",
+                        "type": "text",
+                        "label": "Object"
+                    },
+                    {
+                        "name": "created",
+                        "type": "date",
+                        "label": "Created"
+                    },
+                    {
+                        "name": "model",
+                        "type": "text",
+                        "label": "Model"
+                    },
+                    {
+                        "name": "choices",
+                        "spec": [
+                            {
+                                "name": "text",
+                                "type": "text",
+                                "label": "Text"
+                            },
+                            {
+                                "name": "index",
+                                "type": "number",
+                                "label": "Index"
+                            },
+                            {
+                                "name": "logprobs",
+                                "type": "text",
+                                "label": "Log Probs"
+                            },
+                            {
+                                "name": "finish_reason",
+                                "type": "text",
+                                "label": "Finish Reason"
+                            },
+                            {
+                                "name": "message",
+                                "spec": [
+                                    {
+                                        "name": "role",
+                                        "type": "text",
+                                        "label": "Role"
+                                    },
+                                    {
+                                        "name": "content",
+                                        "type": "text",
+                                        "label": "Content"
+                                    },
+                                    {
+                                        "name": "tool_calls",
+                                        "spec": [
+                                            {
+                                                "name": "id",
+                                                "type": "text",
+                                                "label": "ID"
+                                            },
+                                            {
+                                                "name": "type",
+                                                "type": "text",
+                                                "label": "Type"
+                                            },
+                                            {
+                                                "name": "function",
+                                                "spec": [
+                                                    {
+                                                        "name": "name",
+                                                        "type": "text",
+                                                        "label": "Name"
+                                                    },
+                                                    {
+                                                        "name": "arguments",
+                                                        "type": "text",
+                                                        "label": "Arguments"
+                                                    }
+                                                ],
+                                                "type": "collection",
+                                                "label": "Function"
+                                            }
+                                        ],
+                                        "type": "array",
+                                        "label": "Tool Calls"
+                                    },
+                                    {
+                                        "name": "refusal",
+                                        "type": "text",
+                                        "label": "Refusal"
+                                    },
+                                    {
+                                        "name": "annotations",
+                                        "spec": [
+                                            {
+                                                "name": "type",
+                                                "type": "text",
+                                                "label": "Type"
+                                            },
+                                            {
+                                                "name": "url_citation",
+                                                "spec": [
+                                                    {
+                                                        "name": "end_index",
+                                                        "type": "number",
+                                                        "label": "End Index"
+                                                    },
+                                                    {
+                                                        "name": "start_index",
+                                                        "type": "number",
+                                                        "label": "Start Index"
+                                                    },
+                                                    {
+                                                        "name": "title",
+                                                        "type": "text",
+                                                        "label": "Title"
+                                                    },
+                                                    {
+                                                        "name": "url",
+                                                        "type": "text",
+                                                        "label": "URL"
+                                                    }
+                                                ],
+                                                "type": "collection",
+                                                "label": "URL Citation"
+                                            }
+                                        ],
+                                        "type": "array",
+                                        "label": "Annotations"
+                                    }
+                                ],
+                                "type": "collection",
+                                "label": "Message"
+                            }
+                        ],
+                        "type": "array",
+                        "label": "Choices"
+                    },
+                    {
+                        "name": "usage",
+                        "spec": [
+                            {
+                                "name": "prompt_tokens",
+                                "type": "number",
+                                "label": "Prompt Tokens"
+                            },
+                            {
+                                "name": "completion_tokens",
+                                "type": "text",
+                                "label": "Completion Tokens"
+                            },
+                            {
+                                "name": "total_tokens",
+                                "type": "number",
+                                "label": "Total Tokens"
+                            },
+                            {
+                                "name": "prompt_tokens_details",
+                                "spec": [
+                                    {
+                                        "name": "cached_tokens",
+                                        "type": "uinteger",
+                                        "label": "Cached Tokens"
+                                    },
+                                    {
+                                        "name": "text_tokens",
+                                        "type": "uinteger",
+                                        "label": "Text Tokens"
+                                    },
+                                    {
+                                        "name": "image_tokens",
+                                        "type": "uinteger",
+                                        "label": "Image Tokens"
+                                    },
+                                    {
+                                        "name": "audio_tokens",
+                                        "type": "uinteger",
+                                        "label": "Audio Tokens"
+                                    }
+                                ],
+                                "type": "collection",
+                                "label": "Prompt Tokens Details"
+                            },
+                            {
+                                "name": "completion_tokens_details",
+                                "spec": [
+                                    {
+                                        "name": "reasoning_tokens",
+                                        "type": "uinteger",
+                                        "label": "Reasoning Tokens"
+                                    },
+                                    {
+                                        "name": "text_tokens",
+                                        "type": "uinteger",
+                                        "label": "Text Tokens"
+                                    },
+                                    {
+                                        "name": "audio_tokens",
+                                        "type": "uinteger",
+                                        "label": "Audio Tokens"
+                                    },
+                                    {
+                                        "name": "accepted_prediction_tokens",
+                                        "type": "uinteger",
+                                        "label": "Accepted Prediction Tokens"
+                                    },
+                                    {
+                                        "name": "rejected_prediction_tokens",
+                                        "type": "uinteger",
+                                        "label": "Rejected Prediction Tokens"
+                                    }
+                                ],
+                                "type": "collection",
+                                "label": "Completion Tokens Details"
+                            }
+                        ],
+                        "type": "collection",
+                        "label": "Usage"
+                    },
+                    {
+                        "name": "service_tier",
+                        "type": "text",
+                        "label": "Service Tier"
+                    },
+                    {
+                        "name": "system_fingerprint",
+                        "type": "text",
+                        "label": "System Fingerprint"
+                    }
+                ],
+                "advanced": true
+            },
+            "onerror": [
+                {
+                    "id": 28,
+                    "module": "builtin:Ignore",
+                    "version": 1,
+                    "metadata": {
+                        "designer": {
+                            "x": 2100,
+                            "y": 150
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "id": 19,
+            "module": "postgres:Query",
+            "version": 2,
+            "parameters": {
+                "account": 4791692,
+                "continueWhenNoRes": false,
+                "isToManageDataInSharedTransaction": true
+            },
+            "mapper": {
+                "command": "-- ============================================================\n-- KCT — COMMANDE UNIQUE MAKE.COM (Run a Query)\n-- VERSION COMPLÈTE — lecture du JSON COMPLET depuis {{17.result}}\n-- 1 seul module postgres:Query\n-- Aucun Iterator nécessaire\n-- ============================================================\n\nDO $$\nDECLARE\n    -- =========================\n    -- 0) JSON texte brut venant du module 17\n    -- =========================\n    v_raw_text TEXT := $json${{17.result}}$json$;\n    v_payload  JSONB;\n\n    -- =========================\n    -- 1) Métadonnées\n    -- =========================\n    v_doc_id            TEXT;\n    v_request_id        TEXT;\n    v_model_ocr         TEXT;\n    v_num_pages         INT;\n    v_created_ts        BIGINT;\n    v_doc_numero        TEXT;\n    v_date_rapport      DATE;\n    v_date_src          TEXT;\n    v_heure_dernier     TEXT;\n    v_ops_raw           TEXT;\n    v_ops_iso           DATE;\n    v_op1e              TEXT;\n    v_op1s              TEXT;\n    v_opds              TEXT;\n    v_nb_app            INT;\n    v_nb_op             INT;\n    v_nb_att            INT;\n\n    -- =========================\n    -- 2) Volumes\n    -- =========================\n    v_import_teu        INT;\n    v_export_teu        INT;\n    v_transbo_teu       INT;\n    v_pleins_teu        INT;\n    v_vides_teu         INT;\n    v_total_teu         INT;\n    v_total_calc        INT;\n    v_imp_fc            INT;\n    v_exp_fc            INT;\n    v_trb_fc            INT;\n    v_pln_fc            INT;\n    v_vid_fc            INT;\n    v_tot_fc            INT;\n    v_taux_real         NUMERIC;\n    v_ecart_fc          INT;\n\n    -- =========================\n    -- 3) Escales armateurs\n    -- =========================\n    v_cma_p             INT;\n    v_cma_r             INT;\n    v_cma_t             NUMERIC;\n    v_hap_p             INT;\n    v_hap_r             INT;\n    v_msc_p             INT;\n    v_msc_r             INT;\n    v_msc_t             NUMERIC;\n    v_msk_p             INT;\n    v_msk_r             INT;\n    v_aut_p             INT;\n    v_aut_r             INT;\n    v_tot_p             INT;\n    v_tot_r             INT;\n    v_taux_esc          NUMERIC;\n\n    -- =========================\n    -- 4) Parc\n    -- =========================\n    v_parc_util         INT;\n    v_parc_tot          INT;\n    v_parc_dispo        INT;\n    v_taux_parc         INT;\n    v_reef_util         INT;\n    v_reef_tot          INT;\n    v_reef_dispo        INT;\n    v_taux_reef         INT;\n\n    -- =========================\n    -- 5) Gate / TTT\n    -- =========================\n    v_ttt_min           INT;\n    v_ttt_cam           INT;\n    v_ttt_cont          INT;\n    v_gep               INT;\n    v_gev               INT;\n    v_gsp               INT;\n    v_gsv               INT;\n    v_g_ent             INT;\n    v_g_sor             INT;\n    v_g_tot             INT;\n\n    -- =========================\n    -- 6) Exploitants\n    -- =========================\n    v_cma_20s INT;\n    v_cma_40s INT;\n    v_cma_40h INT;\n    v_cma_20p INT;\n    v_cma_40p INT;\n    v_cma_20r INT;\n    v_cma_40r INT;\n    v_cma_tot INT;\n\n    v_hlc_20s INT;\n    v_hlc_40s INT;\n    v_hlc_40h INT;\n    v_hlc_20p INT;\n    v_hlc_40p INT;\n    v_hlc_20r INT;\n    v_hlc_40r INT;\n    v_hlc_tot INT;\n\n    v_msk_20s INT;\n    v_msk_40s INT;\n    v_msk_40h INT;\n    v_msk_20p INT;\n    v_msk_40p INT;\n    v_msk_20r INT;\n    v_msk_40r INT;\n    v_msk_tot INT;\n\n    v_mgs_20s INT;\n    v_mgs_40s INT;\n    v_mgs_40h INT;\n    v_mgs_20p INT;\n    v_mgs_40p INT;\n    v_mgs_20r INT;\n    v_mgs_40r INT;\n    v_mgs_tot INT;\n\n    v_t20s INT;\n    v_t40s INT;\n    v_t40h INT;\n    v_t20p INT;\n    v_t40p INT;\n    v_t20r INT;\n    v_t40r INT;\n    v_gtot INT;\n\n    -- =========================\n    -- 7) KPIs\n    -- =========================\n    v_np_app   NUMERIC;\n    v_np_op    NUMERIC;\n    v_teu_prev INT;\n    v_teu_rest INT;\n    v_util_pct NUMERIC;\n    v_ttt_flag TEXT;\n    v_gate_pct NUMERIC;\n\n    -- =========================\n    -- 8) Clés techniques\n    -- =========================\n    v_date_id   INT;\n    v_rapport_id UUID;\n\nBEGIN\n    -- =========================\n    -- 9) Cast JSON brut -> JSONB\n    -- =========================\n    v_payload := v_raw_text::jsonb;\n\n    -- =========================\n    -- 10) Extraction des champs simples\n    -- =========================\n    v_doc_id        := COALESCE(v_payload->>'doc_id', '');\n    v_request_id    := COALESCE(v_payload->>'request_id', '');\n    v_model_ocr     := COALESCE(v_payload->>'model_ocr', '');\n    v_num_pages     := COALESCE((v_payload->>'num_pages')::INT, 0);\n    v_created_ts    := COALESCE((v_payload->>'created_timestamp')::BIGINT, 0);\n    v_doc_numero    := COALESCE(v_payload->>'document_numero', '');\n    v_date_rapport  := NULLIF(v_payload->>'date_rapport', '')::DATE;\n    v_date_src      := COALESCE(v_payload->>'date_rapport_source', '');\n    v_heure_dernier := COALESCE(v_payload->>'heure_dernier_camion_sorti_raw', '');\n    v_ops_raw       := COALESCE(v_payload->>'ops_date_dernier_camion_raw', '');\n    v_ops_iso       := NULLIF(v_payload->>'ops_date_dernier_camion_iso', '')::DATE;\n    v_op1e          := COALESCE(v_payload->>'ops_1er_camion_entre', '');\n    v_op1s          := COALESCE(v_payload->>'ops_1er_camion_sorti', '');\n    v_opds          := COALESCE(v_payload->>'ops_dernier_camion_sorti', '');\n    v_nb_app        := COALESCE((v_payload->>'nb_navires_appareilles')::INT, 0);\n    v_nb_op         := COALESCE((v_payload->>'nb_navires_en_operation')::INT, 0);\n    v_nb_att        := COALESCE((v_payload->>'nb_navires_attendus')::INT, 0);\n\n    -- Volumes\n    v_import_teu    := COALESCE((v_payload->>'import_teu')::INT, 0);\n    v_export_teu    := COALESCE((v_payload->>'export_teu')::INT, 0);\n    v_transbo_teu   := COALESCE((v_payload->>'transbo_teu')::INT, 0);\n    v_pleins_teu    := COALESCE((v_payload->>'pleins_total_teu')::INT, 0);\n    v_vides_teu     := COALESCE((v_payload->>'vides_teu')::INT, 0);\n    v_total_teu     := COALESCE((v_payload->>'total_teu')::INT, 0);\n    v_total_calc    := COALESCE((v_payload->>'total_teu_calcule')::INT, 0);\n    v_imp_fc        := COALESCE((v_payload->>'import_forecast')::INT, 0);\n    v_exp_fc        := COALESCE((v_payload->>'export_forecast')::INT, 0);\n    v_trb_fc        := COALESCE((v_payload->>'transbo_forecast')::INT, 0);\n    v_pln_fc        := COALESCE((v_payload->>'pleins_forecast')::INT, 0);\n    v_vid_fc        := COALESCE((v_payload->>'vides_forecast')::INT, 0);\n    v_tot_fc        := COALESCE((v_payload->>'total_forecast')::INT, 0);\n    v_taux_real     := COALESCE((v_payload->>'taux_realisation_total_pct')::NUMERIC, 0);\n    v_ecart_fc      := COALESCE((v_payload->>'ecart_total_forecast')::INT, 0);\n\n    -- Escales\n    v_cma_p         := COALESCE((v_payload->>'escales_cma_cgm_prevues')::INT, 0);\n    v_cma_r         := COALESCE((v_payload->>'escales_cma_cgm_realisees')::INT, 0);\n    v_cma_t         := COALESCE((v_payload->>'escales_cma_cgm_taux_pct')::NUMERIC, 0);\n    v_hap_p         := COALESCE((v_payload->>'escales_hapag_lloyd_prevues')::INT, 0);\n    v_hap_r         := COALESCE((v_payload->>'escales_hapag_lloyd_realisees')::INT, 0);\n    v_msc_p         := COALESCE((v_payload->>'escales_msc_prevues')::INT, 0);\n    v_msc_r         := COALESCE((v_payload->>'escales_msc_realisees')::INT, 0);\n    v_msc_t         := COALESCE((v_payload->>'escales_msc_taux_pct')::NUMERIC, 0);\n    v_msk_p         := COALESCE((v_payload->>'escales_maersk_prevues')::INT, 0);\n    v_msk_r         := COALESCE((v_payload->>'escales_maersk_realisees')::INT, 0);\n    v_aut_p         := COALESCE((v_payload->>'escales_autres_prevues')::INT, 0);\n    v_aut_r         := COALESCE((v_payload->>'escales_autres_realisees')::INT, 0);\n    v_tot_p         := COALESCE((v_payload->>'escales_total_prevues')::INT, 0);\n    v_tot_r         := COALESCE((v_payload->>'escales_total_realisees')::INT, 0);\n    v_taux_esc      := COALESCE((v_payload->>'taux_realisation_escales_pct')::NUMERIC, 0);\n\n    -- Parc\n    v_parc_util     := COALESCE((v_payload->>'parc_conteneurs_utilise')::INT, 0);\n    v_parc_tot      := COALESCE((v_payload->>'parc_conteneurs_total')::INT, 0);\n    v_parc_dispo    := COALESCE((v_payload->>'parc_conteneurs_disponible')::INT, 0);\n    v_taux_parc     := COALESCE((v_payload->>'taux_occupation_parc')::INT, 0);\n    v_reef_util     := COALESCE((v_payload->>'reefers_utilises')::INT, 0);\n    v_reef_tot      := COALESCE((v_payload->>'reefers_total')::INT, 0);\n    v_reef_dispo    := COALESCE((v_payload->>'reefers_disponibles')::INT, 0);\n    v_taux_reef     := COALESCE((v_payload->>'taux_occupation_reefers')::INT, 0);\n\n    -- Gate / TTT\n    v_ttt_min       := COALESCE((v_payload->>'ttt_duree_minutes')::INT, 0);\n    v_ttt_cam       := COALESCE((v_payload->>'ttt_total_camions')::INT, 0);\n    v_ttt_cont      := COALESCE((v_payload->>'ttt_total_conteneurs')::INT, 0);\n    v_gep           := COALESCE((v_payload->>'gate_entrees_pleins')::INT, 0);\n    v_gev           := COALESCE((v_payload->>'gate_entrees_vides')::INT, 0);\n    v_gsp           := COALESCE((v_payload->>'gate_sorties_pleins')::INT, 0);\n    v_gsv           := COALESCE((v_payload->>'gate_sorties_vides')::INT, 0);\n    v_g_ent         := COALESCE((v_payload->>'gate_total_entrees')::INT, 0);\n    v_g_sor         := COALESCE((v_payload->>'gate_total_sorties')::INT, 0);\n    v_g_tot         := COALESCE((v_payload->>'gate_total_mouvements')::INT, 0);\n\n    -- Exploitants\n    v_cma_20s := COALESCE((v_payload->>'exp_CMA_20std')::INT, 0);\n    v_cma_40s := COALESCE((v_payload->>'exp_CMA_40std')::INT, 0);\n    v_cma_40h := COALESCE((v_payload->>'exp_CMA_40htc')::INT, 0);\n    v_cma_20p := COALESCE((v_payload->>'exp_CMA_20spe')::INT, 0);\n    v_cma_40p := COALESCE((v_payload->>'exp_CMA_40spe')::INT, 0);\n    v_cma_20r := COALESCE((v_payload->>'exp_CMA_20rf')::INT, 0);\n    v_cma_40r := COALESCE((v_payload->>'exp_CMA_40rf')::INT, 0);\n    v_cma_tot := COALESCE((v_payload->>'exp_CMA_total')::INT, 0);\n\n    v_hlc_20s := COALESCE((v_payload->>'exp_HLC_20std')::INT, 0);\n    v_hlc_40s := COALESCE((v_payload->>'exp_HLC_40std')::INT, 0);\n    v_hlc_40h := COALESCE((v_payload->>'exp_HLC_40htc')::INT, 0);\n    v_hlc_20p := COALESCE((v_payload->>'exp_HLC_20spe')::INT, 0);\n    v_hlc_40p := COALESCE((v_payload->>'exp_HLC_40spe')::INT, 0);\n    v_hlc_20r := COALESCE((v_payload->>'exp_HLC_20rf')::INT, 0);\n    v_hlc_40r := COALESCE((v_payload->>'exp_HLC_40rf')::INT, 0);\n    v_hlc_tot := COALESCE((v_payload->>'exp_HLC_total')::INT, 0);\n\n    v_msk_20s := COALESCE((v_payload->>'exp_MSK_20std')::INT, 0);\n    v_msk_40s := COALESCE((v_payload->>'exp_MSK_40std')::INT, 0);\n    v_msk_40h := COALESCE((v_payload->>'exp_MSK_40htc')::INT, 0);\n    v_msk_20p := COALESCE((v_payload->>'exp_MSK_20spe')::INT, 0);\n    v_msk_40p := COALESCE((v_payload->>'exp_MSK_40spe')::INT, 0);\n    v_msk_20r := COALESCE((v_payload->>'exp_MSK_20rf')::INT, 0);\n    v_msk_40r := COALESCE((v_payload->>'exp_MSK_40rf')::INT, 0);\n    v_msk_tot := COALESCE((v_payload->>'exp_MSK_total')::INT, 0);\n\n    v_mgs_20s := COALESCE((v_payload->>'exp_MGS_20std')::INT, 0);\n    v_mgs_40s := COALESCE((v_payload->>'exp_MGS_40std')::INT, 0);\n    v_mgs_40h := COALESCE((v_payload->>'exp_MGS_40htc')::INT, 0);\n    v_mgs_20p := COALESCE((v_payload->>'exp_MGS_20spe')::INT, 0);\n    v_mgs_40p := COALESCE((v_payload->>'exp_MGS_40spe')::INT, 0);\n    v_mgs_20r := COALESCE((v_payload->>'exp_MGS_20rf')::INT, 0);\n    v_mgs_40r := COALESCE((v_payload->>'exp_MGS_40rf')::INT, 0);\n    v_mgs_tot := COALESCE((v_payload->>'exp_MGS_total')::INT, 0);\n\n    v_t20s := COALESCE((v_payload->>'total_20std')::INT, 0);\n    v_t40s := COALESCE((v_payload->>'total_40std')::INT, 0);\n    v_t40h := COALESCE((v_payload->>'total_40htc')::INT, 0);\n    v_t20p := COALESCE((v_payload->>'total_20spe')::INT, 0);\n    v_t40p := COALESCE((v_payload->>'total_40spe')::INT, 0);\n    v_t20r := COALESCE((v_payload->>'total_20rf')::INT, 0);\n    v_t40r := COALESCE((v_payload->>'total_40rf')::INT, 0);\n    v_gtot := COALESCE((v_payload->>'exp_grand_total')::INT, 0);\n\n    -- KPIs\n    v_np_app   := COALESCE((v_payload->>'kpi_net_prod_moy_appareilles')::NUMERIC, 0);\n    v_np_op    := COALESCE((v_payload->>'kpi_net_prod_moy_operation')::NUMERIC, 0);\n    v_teu_prev := COALESCE((v_payload->>'kpi_teu_total_maritimes_prevu')::INT, 0);\n    v_teu_rest := COALESCE((v_payload->>'kpi_teu_restant_operation')::INT, 0);\n    v_util_pct := COALESCE((v_payload->>'kpi_utilisation_globale_pct')::NUMERIC, 0);\n    v_ttt_flag := COALESCE(v_payload->>'kpi_ttt_flag', '');\n    v_gate_pct := COALESCE((v_payload->>'kpi_gate_ratio_pleins_entrees_pct')::NUMERIC, 0);\n\n    -- =========================\n    -- 11) dim_date\n    -- =========================\n    INSERT INTO kct.dim_date (\n        date_id, date_iso, annee, semestre, trimestre, mois_num,\n        mois_nom_fr, mois_nom_court_fr, semaine_iso, semaine_label,\n        jour_du_mois, jour_de_semaine, jour_nom_fr, jour_nom_court_fr,\n        jour_de_annee, est_week_end, est_jour_ferie,\n        est_dernier_du_mois, est_premier_du_mois,\n        annee_mois, annee_trim, annee_sem\n    )\n    SELECT\n        TO_CHAR(v_date_rapport, 'YYYYMMDD')::INT,\n        v_date_rapport,\n        EXTRACT(YEAR  FROM v_date_rapport)::SMALLINT,\n        CASE WHEN EXTRACT(MONTH FROM v_date_rapport) <= 6 THEN 1 ELSE 2 END::SMALLINT,\n        EXTRACT(QUARTER FROM v_date_rapport)::SMALLINT,\n        EXTRACT(MONTH FROM v_date_rapport)::SMALLINT,\n        CASE EXTRACT(MONTH FROM v_date_rapport)::INT\n            WHEN 1 THEN 'Janvier'   WHEN 2 THEN 'Février'   WHEN 3 THEN 'Mars'\n            WHEN 4 THEN 'Avril'     WHEN 5 THEN 'Mai'       WHEN 6 THEN 'Juin'\n            WHEN 7 THEN 'Juillet'   WHEN 8 THEN 'Août'      WHEN 9 THEN 'Septembre'\n            WHEN 10 THEN 'Octobre'  WHEN 11 THEN 'Novembre' WHEN 12 THEN 'Décembre'\n        END,\n        CASE EXTRACT(MONTH FROM v_date_rapport)::INT\n            WHEN 1 THEN 'Janv' WHEN 2 THEN 'Févr' WHEN 3 THEN 'Mars'\n            WHEN 4 THEN 'Avr'  WHEN 5 THEN 'Mai'  WHEN 6 THEN 'Juin'\n            WHEN 7 THEN 'Juil' WHEN 8 THEN 'Août' WHEN 9 THEN 'Sept'\n            WHEN 10 THEN 'Oct' WHEN 11 THEN 'Nov' WHEN 12 THEN 'Déc'\n        END,\n        EXTRACT(WEEK FROM v_date_rapport)::SMALLINT,\n        'S' || LPAD(EXTRACT(WEEK FROM v_date_rapport)::TEXT, 2, '0') || '-' || EXTRACT(YEAR FROM v_date_rapport)::TEXT,\n        EXTRACT(DAY FROM v_date_rapport)::SMALLINT,\n        EXTRACT(ISODOW FROM v_date_rapport)::SMALLINT,\n        CASE EXTRACT(ISODOW FROM v_date_rapport)::INT\n            WHEN 1 THEN 'Lundi' WHEN 2 THEN 'Mardi' WHEN 3 THEN 'Mercredi'\n            WHEN 4 THEN 'Jeudi' WHEN 5 THEN 'Vendredi' WHEN 6 THEN 'Samedi'\n            WHEN 7 THEN 'Dimanche'\n        END,\n        CASE EXTRACT(ISODOW FROM v_date_rapport)::INT\n            WHEN 1 THEN 'Lun' WHEN 2 THEN 'Mar' WHEN 3 THEN 'Mer'\n            WHEN 4 THEN 'Jeu' WHEN 5 THEN 'Ven' WHEN 6 THEN 'Sam' WHEN 7 THEN 'Dim'\n        END,\n        EXTRACT(DOY FROM v_date_rapport)::SMALLINT,\n        EXTRACT(ISODOW FROM v_date_rapport) IN (6, 7),\n        FALSE,\n        (v_date_rapport + INTERVAL '1 day')::date > DATE_TRUNC('month', v_date_rapport) + INTERVAL '1 month',\n        EXTRACT(DAY FROM v_date_rapport) = 1,\n        TO_CHAR(v_date_rapport, 'YYYY-MM'),\n        EXTRACT(YEAR FROM v_date_rapport)::TEXT || '-T' || EXTRACT(QUARTER FROM v_date_rapport)::TEXT,\n        EXTRACT(YEAR FROM v_date_rapport)::TEXT || '-S' || CASE WHEN EXTRACT(MONTH FROM v_date_rapport) <= 6 THEN '1' ELSE '2' END\n    ON CONFLICT (date_id) DO NOTHING;\n\n    SELECT TO_CHAR(v_date_rapport, 'YYYYMMDD')::INT INTO v_date_id;\n\n    -- =========================\n    -- 12) Rapport maître\n    -- =========================\n    INSERT INTO kct.kct_rapport_quotidien (\n        rapport_id, doc_id, request_id, date_id, date_rapport,\n        document_numero, model_ocr, num_pages, created_timestamp,\n        date_rapport_source, ops_1er_camion_entre, ops_1er_camion_sorti,\n        ops_dernier_camion_sorti, ops_date_dernier_camion_raw,\n        ops_date_dernier_camion_iso, heure_dernier_camion_raw,\n        nb_navires_appareilles, nb_navires_en_operation, nb_navires_attendus,\n        source_fichier, inserted_at, updated_at\n    ) VALUES (\n        gen_random_uuid(), v_doc_id, v_request_id, v_date_id, v_date_rapport,\n        v_doc_numero, v_model_ocr, v_num_pages, v_created_ts,\n        v_date_src, v_op1e, v_op1s, v_opds, v_ops_raw,\n        v_ops_iso, v_heure_dernier,\n        v_nb_app, v_nb_op, v_nb_att,\n        'make_kct_single_query_raw_result', NOW(), NOW()\n    )\n    ON CONFLICT (doc_id) DO UPDATE SET\n        updated_at                  = NOW(),\n        request_id                  = EXCLUDED.request_id,\n        date_id                     = EXCLUDED.date_id,\n        date_rapport                = EXCLUDED.date_rapport,\n        document_numero             = EXCLUDED.document_numero,\n        model_ocr                   = EXCLUDED.model_ocr,\n        num_pages                   = EXCLUDED.num_pages,\n        created_timestamp           = EXCLUDED.created_timestamp,\n        date_rapport_source         = EXCLUDED.date_rapport_source,\n        ops_1er_camion_entre        = EXCLUDED.ops_1er_camion_entre,\n        ops_1er_camion_sorti        = EXCLUDED.ops_1er_camion_sorti,\n        ops_dernier_camion_sorti    = EXCLUDED.ops_dernier_camion_sorti,\n        ops_date_dernier_camion_raw = EXCLUDED.ops_date_dernier_camion_raw,\n        ops_date_dernier_camion_iso = EXCLUDED.ops_date_dernier_camion_iso,\n        heure_dernier_camion_raw    = EXCLUDED.heure_dernier_camion_raw,\n        nb_navires_appareilles      = EXCLUDED.nb_navires_appareilles,\n        nb_navires_en_operation     = EXCLUDED.nb_navires_en_operation,\n        nb_navires_attendus         = EXCLUDED.nb_navires_attendus;\n\n    SELECT rapport_id INTO v_rapport_id\n    FROM kct.kct_rapport_quotidien\n    WHERE doc_id = v_doc_id;\n\n    -- =========================\n    -- 13) Volumes\n    -- =========================\n    INSERT INTO kct.kct_volumes_teu (\n        rapport_id, date_id, date_rapport,\n        import_teu, export_teu, transbo_teu, pleins_total_teu, vides_teu,\n        total_teu, total_teu_calcule,\n        import_forecast, export_forecast, transbo_forecast,\n        pleins_forecast, vides_forecast, total_forecast,\n        taux_realisation_total_pct, ecart_total_forecast\n    ) VALUES (\n        v_rapport_id, v_date_id, v_date_rapport,\n        v_import_teu, v_export_teu, v_transbo_teu, v_pleins_teu, v_vides_teu,\n        v_total_teu, v_total_calc,\n        v_imp_fc, v_exp_fc, v_trb_fc, v_pln_fc, v_vid_fc, v_tot_fc,\n        v_taux_real, v_ecart_fc\n    )\n    ON CONFLICT (rapport_id) DO UPDATE SET\n        import_teu                 = EXCLUDED.import_teu,\n        export_teu                 = EXCLUDED.export_teu,\n        transbo_teu                = EXCLUDED.transbo_teu,\n        pleins_total_teu           = EXCLUDED.pleins_total_teu,\n        vides_teu                  = EXCLUDED.vides_teu,\n        total_teu                  = EXCLUDED.total_teu,\n        total_teu_calcule          = EXCLUDED.total_teu_calcule,\n        import_forecast            = EXCLUDED.import_forecast,\n        export_forecast            = EXCLUDED.export_forecast,\n        transbo_forecast           = EXCLUDED.transbo_forecast,\n        pleins_forecast            = EXCLUDED.pleins_forecast,\n        vides_forecast             = EXCLUDED.vides_forecast,\n        total_forecast             = EXCLUDED.total_forecast,\n        taux_realisation_total_pct = EXCLUDED.taux_realisation_total_pct,\n        ecart_total_forecast       = EXCLUDED.ecart_total_forecast;\n\n    -- =========================\n    -- 14) Escales armateurs\n    -- =========================\n    INSERT INTO kct.kct_escales_armateurs (\n        rapport_id, date_id, date_rapport,\n        escales_cma_cgm_prevues, escales_cma_cgm_realisees, escales_cma_cgm_taux_pct,\n        escales_hapag_lloyd_prevues, escales_hapag_lloyd_realisees,\n        escales_msc_prevues, escales_msc_realisees, escales_msc_taux_pct,\n        escales_maersk_prevues, escales_maersk_realisees,\n        escales_autres_prevues, escales_autres_realisees,\n        escales_total_prevues, escales_total_realisees, taux_realisation_escales_pct\n    ) VALUES (\n        v_rapport_id, v_date_id, v_date_rapport,\n        v_cma_p, v_cma_r, v_cma_t, v_hap_p, v_hap_r,\n        v_msc_p, v_msc_r, v_msc_t, v_msk_p, v_msk_r,\n        v_aut_p, v_aut_r, v_tot_p, v_tot_r, v_taux_esc\n    )\n    ON CONFLICT (rapport_id) DO UPDATE SET\n        escales_cma_cgm_prevues        = EXCLUDED.escales_cma_cgm_prevues,\n        escales_cma_cgm_realisees      = EXCLUDED.escales_cma_cgm_realisees,\n        escales_cma_cgm_taux_pct       = EXCLUDED.escales_cma_cgm_taux_pct,\n        escales_hapag_lloyd_prevues    = EXCLUDED.escales_hapag_lloyd_prevues,\n        escales_hapag_lloyd_realisees  = EXCLUDED.escales_hapag_lloyd_realisees,\n        escales_msc_prevues            = EXCLUDED.escales_msc_prevues,\n        escales_msc_realisees          = EXCLUDED.escales_msc_realisees,\n        escales_msc_taux_pct           = EXCLUDED.escales_msc_taux_pct,\n        escales_maersk_prevues         = EXCLUDED.escales_maersk_prevues,\n        escales_maersk_realisees       = EXCLUDED.escales_maersk_realisees,\n        escales_autres_prevues         = EXCLUDED.escales_autres_prevues,\n        escales_autres_realisees       = EXCLUDED.escales_autres_realisees,\n        escales_total_prevues          = EXCLUDED.escales_total_prevues,\n        escales_total_realisees        = EXCLUDED.escales_total_realisees,\n        taux_realisation_escales_pct   = EXCLUDED.taux_realisation_escales_pct;\n\n    -- =========================\n    -- 15) Parc conteneurs\n    -- =========================\n    INSERT INTO kct.kct_parc_conteneurs (\n        rapport_id, date_id, date_rapport,\n        parc_conteneurs_utilise, parc_conteneurs_total, parc_conteneurs_disponible,\n        taux_occupation_parc, reefers_utilises, reefers_total,\n        reefers_disponibles, taux_occupation_reefers\n    ) VALUES (\n        v_rapport_id, v_date_id, v_date_rapport,\n        v_parc_util, v_parc_tot, v_parc_dispo, v_taux_parc,\n        v_reef_util, v_reef_tot, v_reef_dispo, v_taux_reef\n    )\n    ON CONFLICT (rapport_id) DO UPDATE SET\n        parc_conteneurs_utilise    = EXCLUDED.parc_conteneurs_utilise,\n        parc_conteneurs_total      = EXCLUDED.parc_conteneurs_total,\n        parc_conteneurs_disponible = EXCLUDED.parc_conteneurs_disponible,\n        taux_occupation_parc       = EXCLUDED.taux_occupation_parc,\n        reefers_utilises           = EXCLUDED.reefers_utilises,\n        reefers_total              = EXCLUDED.reefers_total,\n        reefers_disponibles        = EXCLUDED.reefers_disponibles,\n        taux_occupation_reefers    = EXCLUDED.taux_occupation_reefers;\n\n    -- =========================\n    -- 16) Gate / TTT\n    -- =========================\n    INSERT INTO kct.kct_gate_ttt (\n        rapport_id, date_id, date_rapport,\n        ttt_duree_minutes, ttt_total_camions, ttt_total_conteneurs,\n        gate_entrees_pleins, gate_entrees_vides,\n        gate_sorties_pleins, gate_sorties_vides,\n        gate_total_entrees, gate_total_sorties, gate_total_mouvements,\n        ops_1er_camion_entre, ops_1er_camion_sorti, ops_dernier_camion_sorti\n    ) VALUES (\n        v_rapport_id, v_date_id, v_date_rapport,\n        v_ttt_min, v_ttt_cam, v_ttt_cont,\n        v_gep, v_gev, v_gsp, v_gsv,\n        v_g_ent, v_g_sor, v_g_tot,\n        v_op1e, v_op1s, v_opds\n    )\n    ON CONFLICT (rapport_id) DO UPDATE SET\n        ttt_duree_minutes        = EXCLUDED.ttt_duree_minutes,\n        ttt_total_camions        = EXCLUDED.ttt_total_camions,\n        ttt_total_conteneurs     = EXCLUDED.ttt_total_conteneurs,\n        gate_entrees_pleins      = EXCLUDED.gate_entrees_pleins,\n        gate_entrees_vides       = EXCLUDED.gate_entrees_vides,\n        gate_sorties_pleins      = EXCLUDED.gate_sorties_pleins,\n        gate_sorties_vides       = EXCLUDED.gate_sorties_vides,\n        gate_total_entrees       = EXCLUDED.gate_total_entrees,\n        gate_total_sorties       = EXCLUDED.gate_total_sorties,\n        gate_total_mouvements    = EXCLUDED.gate_total_mouvements,\n        ops_1er_camion_entre     = EXCLUDED.ops_1er_camion_entre,\n        ops_1er_camion_sorti     = EXCLUDED.ops_1er_camion_sorti,\n        ops_dernier_camion_sorti = EXCLUDED.ops_dernier_camion_sorti;\n\n    -- =========================\n    -- 17) Exploitants parc\n    -- =========================\n    INSERT INTO kct.kct_exploitants_parc (\n        rapport_id, date_id, date_rapport,\n        exp_cma_20std,exp_cma_40std,exp_cma_40htc,exp_cma_20spe,exp_cma_40spe,exp_cma_20rf,exp_cma_40rf,exp_cma_total,\n        exp_hlc_20std,exp_hlc_40std,exp_hlc_40htc,exp_hlc_20spe,exp_hlc_40spe,exp_hlc_20rf,exp_hlc_40rf,exp_hlc_total,\n        exp_msk_20std,exp_msk_40std,exp_msk_40htc,exp_msk_20spe,exp_msk_40spe,exp_msk_20rf,exp_msk_40rf,exp_msk_total,\n        exp_mgs_20std,exp_mgs_40std,exp_mgs_40htc,exp_mgs_20spe,exp_mgs_40spe,exp_mgs_20rf,exp_mgs_40rf,exp_mgs_total,\n        total_20std,total_40std,total_40htc,total_20spe,total_40spe,total_20rf,total_40rf,exp_grand_total\n    ) VALUES (\n        v_rapport_id, v_date_id, v_date_rapport,\n        v_cma_20s,v_cma_40s,v_cma_40h,v_cma_20p,v_cma_40p,v_cma_20r,v_cma_40r,v_cma_tot,\n        v_hlc_20s,v_hlc_40s,v_hlc_40h,v_hlc_20p,v_hlc_40p,v_hlc_20r,v_hlc_40r,v_hlc_tot,\n        v_msk_20s,v_msk_40s,v_msk_40h,v_msk_20p,v_msk_40p,v_msk_20r,v_msk_40r,v_msk_tot,\n        v_mgs_20s,v_mgs_40s,v_mgs_40h,v_mgs_20p,v_mgs_40p,v_mgs_20r,v_mgs_40r,v_mgs_tot,\n        v_t20s,v_t40s,v_t40h,v_t20p,v_t40p,v_t20r,v_t40r,v_gtot\n    )\n    ON CONFLICT (rapport_id) DO UPDATE SET\n        exp_cma_20std   = EXCLUDED.exp_cma_20std,\n        exp_cma_40std   = EXCLUDED.exp_cma_40std,\n        exp_cma_40htc   = EXCLUDED.exp_cma_40htc,\n        exp_cma_20spe   = EXCLUDED.exp_cma_20spe,\n        exp_cma_40spe   = EXCLUDED.exp_cma_40spe,\n        exp_cma_20rf    = EXCLUDED.exp_cma_20rf,\n        exp_cma_40rf    = EXCLUDED.exp_cma_40rf,\n        exp_cma_total   = EXCLUDED.exp_cma_total,\n        exp_hlc_20std   = EXCLUDED.exp_hlc_20std,\n        exp_hlc_40std   = EXCLUDED.exp_hlc_40std,\n        exp_hlc_40htc   = EXCLUDED.exp_hlc_40htc,\n        exp_hlc_20spe   = EXCLUDED.exp_hlc_20spe,\n        exp_hlc_40spe   = EXCLUDED.exp_hlc_40spe,\n        exp_hlc_20rf    = EXCLUDED.exp_hlc_20rf,\n        exp_hlc_40rf    = EXCLUDED.exp_hlc_40rf,\n        exp_hlc_total   = EXCLUDED.exp_hlc_total,\n        exp_msk_20std   = EXCLUDED.exp_msk_20std,\n        exp_msk_40std   = EXCLUDED.exp_msk_40std,\n        exp_msk_40htc   = EXCLUDED.exp_msk_40htc,\n        exp_msk_20spe   = EXCLUDED.exp_msk_20spe,\n        exp_msk_40spe   = EXCLUDED.exp_msk_40spe,\n        exp_msk_20rf    = EXCLUDED.exp_msk_20rf,\n        exp_msk_40rf    = EXCLUDED.exp_msk_40rf,\n        exp_msk_total   = EXCLUDED.exp_msk_total,\n        exp_mgs_20std   = EXCLUDED.exp_mgs_20std,\n        exp_mgs_40std   = EXCLUDED.exp_mgs_40std,\n        exp_mgs_40htc   = EXCLUDED.exp_mgs_40htc,\n        exp_mgs_20spe   = EXCLUDED.exp_mgs_20spe,\n        exp_mgs_40spe   = EXCLUDED.exp_mgs_40spe,\n        exp_mgs_20rf    = EXCLUDED.exp_mgs_20rf,\n        exp_mgs_40rf    = EXCLUDED.exp_mgs_40rf,\n        exp_mgs_total   = EXCLUDED.exp_mgs_total,\n        total_20std     = EXCLUDED.total_20std,\n        total_40std     = EXCLUDED.total_40std,\n        total_40htc     = EXCLUDED.total_40htc,\n        total_20spe     = EXCLUDED.total_20spe,\n        total_40spe     = EXCLUDED.total_40spe,\n        total_20rf      = EXCLUDED.total_20rf,\n        total_40rf      = EXCLUDED.total_40rf,\n        exp_grand_total = EXCLUDED.exp_grand_total;\n\n    -- =========================\n    -- 18) KPIs\n    -- =========================\n    INSERT INTO kct.kct_kpis (\n        rapport_id, date_id, date_rapport,\n        kpi_net_prod_moy_appareilles, kpi_net_prod_moy_operation,\n        kpi_teu_total_maritimes_prevu, kpi_teu_restant_operation,\n        kpi_utilisation_globale_pct, kpi_ttt_flag, kpi_gate_ratio_pleins_entrees_pct\n    ) VALUES (\n        v_rapport_id, v_date_id, v_date_rapport,\n        v_np_app, v_np_op, v_teu_prev, v_teu_rest,\n        v_util_pct, v_ttt_flag, v_gate_pct\n    )\n    ON CONFLICT (rapport_id) DO UPDATE SET\n        kpi_net_prod_moy_appareilles      = EXCLUDED.kpi_net_prod_moy_appareilles,\n        kpi_net_prod_moy_operation        = EXCLUDED.kpi_net_prod_moy_operation,\n        kpi_teu_total_maritimes_prevu     = EXCLUDED.kpi_teu_total_maritimes_prevu,\n        kpi_teu_restant_operation         = EXCLUDED.kpi_teu_restant_operation,\n        kpi_utilisation_globale_pct       = EXCLUDED.kpi_utilisation_globale_pct,\n        kpi_ttt_flag                      = EXCLUDED.kpi_ttt_flag,\n        kpi_gate_ratio_pleins_entrees_pct = EXCLUDED.kpi_gate_ratio_pleins_entrees_pct;\n\n    -- =========================\n    -- 19) Navires appareillés\n    -- =========================\n    DELETE FROM kct.kct_navires_appareilles\n    WHERE rapport_id = v_rapport_id;\n\n    INSERT INTO kct.kct_navires_appareilles (\n        rapport_id, date_id, date_rapport,\n        numero, nom_navire, voyage, loa, shipping, service,\n        last_port, next_port, atb, atc, atd, t_units, net_prod\n    )\n    SELECT\n        v_rapport_id, v_date_id, v_date_rapport,\n        COALESCE(numero, 0),\n        COALESCE(nom, ''),\n        COALESCE(voyage, ''),\n        COALESCE(loa, ''),\n        COALESCE(shipping, ''),\n        COALESCE(service, ''),\n        COALESCE(last_port, ''),\n        COALESCE(next_port, ''),\n        COALESCE(atb, ''),\n        COALESCE(atc, ''),\n        COALESCE(atd, ''),\n        COALESCE(t_units, 0),\n        COALESCE(net_prod, 0)\n    FROM jsonb_to_recordset(COALESCE(v_payload->'navires_appareilles', '[]'::jsonb)) AS x(\n        numero INT, nom TEXT, voyage TEXT, loa TEXT,\n        shipping TEXT, service TEXT, last_port TEXT, next_port TEXT,\n        atb TEXT, atc TEXT, atd TEXT, t_units INT, net_prod NUMERIC\n    )\n    WHERE COALESCE(nom, '') <> ''\n    ON CONFLICT (rapport_id, nom_navire) DO UPDATE SET\n        voyage    = EXCLUDED.voyage,\n        loa       = EXCLUDED.loa,\n        shipping  = EXCLUDED.shipping,\n        service   = EXCLUDED.service,\n        last_port = EXCLUDED.last_port,\n        next_port = EXCLUDED.next_port,\n        atb       = EXCLUDED.atb,\n        atc       = EXCLUDED.atc,\n        atd       = EXCLUDED.atd,\n        t_units   = EXCLUDED.t_units,\n        net_prod  = EXCLUDED.net_prod;\n\n    -- =========================\n    -- 20) Navires en opération\n    -- =========================\n    DELETE FROM kct.kct_navires_operation\n    WHERE rapport_id = v_rapport_id;\n\n    INSERT INTO kct.kct_navires_operation (\n        rapport_id, date_id, date_rapport,\n        numero, nom_navire, voyage, loa, shipping, service,\n        last_port, next_port, ata_pstn, atb, etc,\n        t_units, rem_units, net_prod, pct_complete\n    )\n    SELECT\n        v_rapport_id, v_date_id, v_date_rapport,\n        COALESCE(numero, 0),\n        COALESCE(nom, ''),\n        COALESCE(voyage, ''),\n        COALESCE(loa, ''),\n        COALESCE(shipping, ''),\n        COALESCE(service, ''),\n        COALESCE(last_port, ''),\n        COALESCE(next_port, ''),\n        COALESCE(ata_pstn, ''),\n        COALESCE(atb, ''),\n        COALESCE(etc, ''),\n        COALESCE(t_units, 0),\n        COALESCE(rem_units, 0),\n        COALESCE(net_prod, 0),\n        COALESCE(pct_complete, 0)\n    FROM jsonb_to_recordset(COALESCE(v_payload->'navires_en_operation', '[]'::jsonb)) AS x(\n        numero INT, nom TEXT, voyage TEXT, loa TEXT,\n        shipping TEXT, service TEXT, last_port TEXT, next_port TEXT,\n        ata_pstn TEXT, atb TEXT, etc TEXT,\n        t_units INT, rem_units INT, net_prod NUMERIC, pct_complete NUMERIC\n    )\n    WHERE COALESCE(nom, '') <> ''\n    ON CONFLICT (rapport_id, nom_navire) DO UPDATE SET\n        voyage       = EXCLUDED.voyage,\n        loa          = EXCLUDED.loa,\n        shipping     = EXCLUDED.shipping,\n        service      = EXCLUDED.service,\n        last_port    = EXCLUDED.last_port,\n        next_port    = EXCLUDED.next_port,\n        ata_pstn     = EXCLUDED.ata_pstn,\n        atb          = EXCLUDED.atb,\n        etc          = EXCLUDED.etc,\n        t_units      = EXCLUDED.t_units,\n        rem_units    = EXCLUDED.rem_units,\n        net_prod     = EXCLUDED.net_prod,\n        pct_complete = EXCLUDED.pct_complete;\n\n    -- =========================\n    -- 21) Navires attendus\n    -- =========================\n    DELETE FROM kct.kct_navires_attendus\n    WHERE rapport_id = v_rapport_id;\n\n    INSERT INTO kct.kct_navires_attendus (\n        rapport_id, date_id, date_rapport,\n        numero, nom_navire, voyage, loa, shipping, service,\n        last_port, next_port, eta, etb, etc, t_units_str, t_units_prevu\n    )\n    SELECT\n        v_rapport_id, v_date_id, v_date_rapport,\n        COALESCE(numero, 0),\n        COALESCE(nom, ''),\n        COALESCE(voyage, ''),\n        COALESCE(loa, ''),\n        COALESCE(shipping, ''),\n        COALESCE(service, ''),\n        COALESCE(last_port, ''),\n        COALESCE(next_port, ''),\n        COALESCE(eta, ''),\n        COALESCE(etb, ''),\n        COALESCE(etc, ''),\n        COALESCE(t_units_str, ''),\n        COALESCE(t_units_prevu, 0)\n    FROM jsonb_to_recordset(COALESCE(v_payload->'navires_attendus', '[]'::jsonb)) AS x(\n        numero INT, nom TEXT, voyage TEXT, loa TEXT,\n        shipping TEXT, service TEXT, last_port TEXT, next_port TEXT,\n        eta TEXT, etb TEXT, etc TEXT, t_units_str TEXT, t_units_prevu INT\n    )\n    WHERE COALESCE(nom, '') <> ''\n    ON CONFLICT (rapport_id, nom_navire) DO UPDATE SET\n        voyage        = EXCLUDED.voyage,\n        loa           = EXCLUDED.loa,\n        shipping      = EXCLUDED.shipping,\n        service       = EXCLUDED.service,\n        last_port     = EXCLUDED.last_port,\n        next_port     = EXCLUDED.next_port,\n        eta           = EXCLUDED.eta,\n        etb           = EXCLUDED.etb,\n        etc           = EXCLUDED.etc,\n        t_units_str   = EXCLUDED.t_units_str,\n        t_units_prevu = EXCLUDED.t_units_prevu;\n\n    -- =========================\n    -- 22) Opérations escales\n    -- =========================\n    DELETE FROM kct.kct_operations_escales\n    WHERE rapport_id = v_rapport_id;\n\n    -- Import\n    INSERT INTO kct.kct_operations_escales (\n        rapport_id, date_id, date_rapport, nom_navire, eta_escale,\n        import_total_tc, import_total_teu,\n        export_prevision, export_reception, export_total_teu,\n        transbo_decharge, transbo_charge, transbo_total_teu\n    )\n    SELECT\n        v_rapport_id, v_date_id, v_date_rapport,\n        COALESCE(nom, ''), COALESCE(eta, ''),\n        COALESCE(total_tc, 0), COALESCE(total_teu, 0),\n        0, 0, 0, 0, 0, 0\n    FROM jsonb_to_recordset(COALESCE(v_payload->'import_escales_detail', '[]'::jsonb)) AS x(\n        nom TEXT, eta TEXT, total_tc INT, total_teu INT\n    )\n    WHERE COALESCE(nom, '') <> ''\n    ON CONFLICT (rapport_id, nom_navire) DO UPDATE SET\n        eta_escale       = EXCLUDED.eta_escale,\n        import_total_tc  = EXCLUDED.import_total_tc,\n        import_total_teu = EXCLUDED.import_total_teu;\n\n    -- Export\n    INSERT INTO kct.kct_operations_escales (\n        rapport_id, date_id, date_rapport, nom_navire, eta_escale,\n        import_total_tc, import_total_teu,\n        export_prevision, export_reception, export_total_teu,\n        transbo_decharge, transbo_charge, transbo_total_teu\n    )\n    SELECT\n        v_rapport_id, v_date_id, v_date_rapport,\n        COALESCE(nom, ''), '',\n        0, 0,\n        COALESCE(prevision, 0), COALESCE(reception, 0), COALESCE(total_teu, 0),\n        0, 0, 0\n    FROM jsonb_to_recordset(COALESCE(v_payload->'export_escales_detail', '[]'::jsonb)) AS x(\n        nom TEXT, prevision INT, reception INT, total_teu INT\n    )\n    WHERE COALESCE(nom, '') <> ''\n    ON CONFLICT (rapport_id, nom_navire) DO UPDATE SET\n        export_prevision = EXCLUDED.export_prevision,\n        export_reception = EXCLUDED.export_reception,\n        export_total_teu = EXCLUDED.export_total_teu;\n\n    -- Transbo\n    INSERT INTO kct.kct_operations_escales (\n        rapport_id, date_id, date_rapport, nom_navire, eta_escale,\n        import_total_tc, import_total_teu,\n        export_prevision, export_reception, export_total_teu,\n        transbo_decharge, transbo_charge, transbo_total_teu\n    )\n    SELECT\n        v_rapport_id, v_date_id, v_date_rapport,\n        COALESCE(nom, ''), '',\n        0, 0, 0, 0, 0,\n        COALESCE(decharge, 0), COALESCE(charge, 0), COALESCE(total_teu, 0)\n    FROM jsonb_to_recordset(COALESCE(v_payload->'transbo_escales_detail', '[]'::jsonb)) AS x(\n        nom TEXT, decharge INT, charge INT, total_teu INT\n    )\n    WHERE COALESCE(nom, '') <> ''\n    ON CONFLICT (rapport_id, nom_navire) DO UPDATE SET\n        transbo_decharge  = EXCLUDED.transbo_decharge,\n        transbo_charge    = EXCLUDED.transbo_charge,\n        transbo_total_teu = EXCLUDED.transbo_total_teu;\n\n    RAISE NOTICE 'OK | doc_id=% | rapport_id=% | nb_app=% | nb_op=% | nb_att=%',\n        v_doc_id, v_rapport_id, v_nb_app, v_nb_op, v_nb_att;\n\nEND $$;"
+            },
+            "metadata": {
+                "designer": {
+                    "x": 2100,
+                    "y": -150
+                },
+                "restore": {
+                    "parameters": {
+                        "account": {
+                            "data": {
+                                "scoped": "true",
+                                "connection": "postgres"
+                            },
+                            "label": "Heroku 2 (ubu9t49cgs8sks@c3hsmn51hjafhh.cluster-czrs8kj4isg7.us-east-1.rds.amazonaws.com:5432/d3tkprud8d3nb9)"
+                        }
+                    }
+                },
+                "parameters": [
+                    {
+                        "name": "account",
+                        "type": "account:postgres",
+                        "label": "Connection",
+                        "required": true
+                    },
+                    {
+                        "name": "continueWhenNoRes",
+                        "type": "boolean",
+                        "label": "Continue the execution of the route even if the module returns no rows",
+                        "required": true
+                    },
+                    {
+                        "name": "isToManageDataInSharedTransaction",
+                        "type": "boolean",
+                        "label": "Manage data within the shared transaction",
+                        "required": true
+                    }
+                ],
+                "expect": [
+                    {
+                        "name": "command",
+                        "type": "text",
+                        "label": "Command",
+                        "required": true
+                    }
+                ]
+            }
+        }
+    ],
+    "metadata": {
+        "instant": false,
+        "version": 1,
+        "scenario": {
+            "roundtrips": 1,
+            "maxErrors": 3,
+            "autoCommit": true,
+            "autoCommitTriggerLast": true,
+            "sequential": false,
+            "slots": null,
+            "confidential": false,
+            "dataloss": false,
+            "dlq": false,
+            "freshVariables": false
+        },
+        "designer": {
+            "orphans": []
+        },
+        "zone": "eu1.make.com",
+        "notes": []
+    }
+}

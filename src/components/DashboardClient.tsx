@@ -1012,9 +1012,11 @@ function BulletinManager({ onDeleted }: { onDeleted: () => void }) {
 export default function DashboardClient({
   filterOptions,
   initialData,
+  serverError = null,
 }: {
   filterOptions: FilterOptions;
   initialData: InitialData;
+  serverError?: string | null;
 }) {
   const router = useRouter();
   const pakazureLogo = "https://static.wixstatic.com/media/ccfac3_e82eb7f271cb42709c78ae85c0aaf01f~mv2.jpg/v1/fill/w_144,h_122,al_c,q_80,usm_0.66_1.00_0.01,enc_avif,quality_auto/PAKAZURE_JPG.jpg";
@@ -1389,6 +1391,18 @@ export default function DashboardClient({
 
         {/* Main Content */}
         <main className="min-w-0 flex-1 space-y-5">
+          {serverError && (
+            <section className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-100">
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0" />
+                <div>
+                  <p className="font-semibold">Mode degrade</p>
+                  <p className="mt-1 text-amber-50/90">{serverError}</p>
+                </div>
+              </div>
+            </section>
+          )}
+
           {/* ── Header / Filters ── */}
           <header className="rounded-2xl border border-[var(--card-border)] bg-[var(--card-bg)] p-5 backdrop-blur-sm theme-transition">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">

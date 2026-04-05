@@ -14,10 +14,28 @@ function toStr(v: unknown): string {
   return String(v);
 }
 
+/**
+ * Format numbers for PDF output.
+ * Uses regular spaces instead of non-breaking spaces (U+00A0)
+ * to prevent jsPDF from spacing out each digit individually.
+ */
 function formatNum(v: unknown): string {
   const n = Number(v);
   if (!Number.isFinite(n)) return toStr(v);
-  return new Intl.NumberFormat("fr-FR").format(n);
+  // Replace ALL non-breaking spaces (U+00A0, U+202F) with regular spaces
+  return new Intl.NumberFormat("fr-FR").format(n).replace(/[\u00A0\u202F]/g, " ");
+}
+
+function formatPdfPercent(v: unknown): string {
+  const n = Number(v);
+  if (!Number.isFinite(n)) return toStr(v);
+  return `${n.toFixed(1)}%`;
+}
+
+function formatPdfDecimal(v: unknown, decimals = 1): string {
+  const n = Number(v);
+  if (!Number.isFinite(n)) return toStr(v);
+  return n.toFixed(decimals).replace(/[\u00A0\u202F]/g, " ");
 }
 
 function getColumns(rows: GenericRow[]): string[] {
@@ -39,16 +57,15 @@ export async function captureCharts(containerSelector: string, maxCharts = 6): P
   const containers = document.querySelectorAll(containerSelector);
   const images: string[] = [];
 
-  const isDark = document.documentElement.getAttribute("data-theme") !== "light";
-  const bgColor = isDark ? "#0c1525" : "#ffffff";
-
   const toCapture = Array.from(containers).slice(0, maxCharts);
 
   for (const container of toCapture) {
     try {
-      const canvas = await html2canvas(container as HTMLElement, {
-        backgroundColor: bgColor,
-        scale: 2,
+      const el = container as HTMLElement;
+      // Force light background for PDF export clarity
+      const canvas = await html2canvas(el, {
+        backgroundColor: "#ffffff",
+        scale: 2.5,
         logging: false,
         useCORS: true,
         removeContainer: true,
@@ -196,11 +213,109 @@ export function downloadExcel(filename: string, sheets: ExcelSheet[]) {
 export interface PdfSection {
   title: string;
   rows: GenericRow[];
-  columns?: { key: string; label: string }[];
+  columns?: { key: string; label: string; format?: "number" | "percent" | "decimal" | "text" }[];
   chartImage?: string; // base64 PNG of chart to render above the table
   intro?: string;
   highlights?: { label: string; value: string }[];
   notes?: string[];
+}
+
+/* ── PDF brand palette ── */
+
+const PDF_BRAND = {
+  navy: [12, 21, 42] as [number, number, number],
+  navyLight: [30, 41, 59] as [number, number, number],
+  cyan: [8, 145, 178] as [number, number, number],
+  cyanDark: [14, 116, 144] as [number, number, number],
+  slate: [71, 85, 105] as [number, number, number],
+  slateMuted: [148, 163, 184] as [number, number, number],
+  soft: [241, 245, 249] as [number, number, number],
+  softer: [248, 250, 252] as [number, number, number],
+  emerald: [16, 185, 129] as [number, number, number],
+  white: [255, 255, 255] as [number, number, number],
+  border: [226, 232, 240] as [number, number, number],
+};
+
+/**
+ * Attempt to load and embed a logo image.
+ * Returns base64 data URL or null if loading fails.
+ */
+async function loadLogoForPdf(logoUrl: string): Promise<string | null> {
+  try {
+    const response = await fetch(logoUrl);
+    if (!response.ok) return null;
+    const blob = await response.blob();
+    // Convert to PNG via canvas if not already a supported format
+    const imageBitmap = await createImageBitmap(blob);
+    const canvas = document.createElement("canvas");
+    canvas.width = imageBitmap.width;
+    canvas.height = imageBitmap.height;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return null;
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(imageBitmap, 0, 0);
+    return canvas.toDataURL("image/png");
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Draw a consistent page header on every page (after page 1).
+ */
+function drawPageHeader(doc: jsPDF, title: string, pageWidth: number) {
+  doc.setFillColor(...PDF_BRAND.navy);
+  doc.rect(0, 0, pageWidth, 14, "F");
+  doc.setTextColor(...PDF_BRAND.white);
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "bold");
+  doc.text(title, 14, 9);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(0, 0, 0);
+}
+
+/**
+ * Draw consistent page footer with page number and branding.
+ */
+function drawFooters(doc: jsPDF, pageCount: number, pageWidth: number, pageHeight: number) {
+  const dateStr = new Intl.DateTimeFormat("fr-FR", { dateStyle: "short" }).format(new Date());
+  for (let i = 1; i <= pageCount; i++) {
+    doc.setPage(i);
+    // Separator line
+    doc.setDrawColor(...PDF_BRAND.border);
+    doc.setLineWidth(0.3);
+    doc.line(14, pageHeight - 14, pageWidth - 14, pageHeight - 14);
+    // Left: branding
+    doc.setFontSize(7.5);
+    doc.setTextColor(...PDF_BRAND.slateMuted);
+    doc.text(`Port Pulse — Pakazure | ${dateStr}`, 14, pageHeight - 9);
+    // Right: page number
+    doc.setFont("helvetica", "bold");
+    doc.text(`Page ${i}/${pageCount}`, pageWidth - 14, pageHeight - 9, { align: "right" });
+    doc.setFont("helvetica", "normal");
+  }
+}
+
+/**
+ * Format a cell value for PDF table display based on column format hint.
+ */
+function formatCellForPdf(v: unknown, format?: "number" | "percent" | "decimal" | "text"): string {
+  if (v instanceof Date && !Number.isNaN(v.getTime())) {
+    return new Intl.DateTimeFormat("fr-FR", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      timeZone: "UTC",
+    }).format(v);
+  }
+  if (format === "percent") return formatPdfPercent(v);
+  if (format === "decimal") return formatPdfDecimal(v);
+  if (format === "number") return formatNum(v);
+  if (typeof v === "number") return formatNum(v);
+  return toStr(v);
 }
 
 export async function downloadPdf(
@@ -213,48 +328,62 @@ export async function downloadPdf(
   const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
-  const contentWidth = pageWidth - 28; // 14mm margins each side
-  const brand = {
-    navy: [15, 23, 42] as [number, number, number],
-    cyan: [8, 145, 178] as [number, number, number],
-    slate: [71, 85, 105] as [number, number, number],
-    soft: [241, 245, 249] as [number, number, number],
-    emerald: [16, 185, 129] as [number, number, number],
-  };
+  const marginLeft = 14;
+  const marginRight = 14;
+  const contentWidth = pageWidth - marginLeft - marginRight;
+  const safeBottom = pageHeight - 20; // leave room for footer
 
-  // Logo
+  // ─── Load logo ───
   let logoDataUrl: string | null = null;
   if (logoUrl) {
+    logoDataUrl = await loadLogoForPdf(logoUrl);
+  }
+
+  // ═══════════════════════════════════════════
+  //  PAGE 1 — COVER HEADER
+  // ═══════════════════════════════════════════
+
+  // Full-width navy header band
+  doc.setFillColor(...PDF_BRAND.navy);
+  doc.rect(0, 0, pageWidth, 40, "F");
+
+  // Accent bar under header
+  doc.setFillColor(...PDF_BRAND.cyan);
+  doc.rect(0, 40, pageWidth, 1.5, "F");
+
+  // Logo (top-right in header)
+  if (logoDataUrl) {
     try {
-      const response = await fetch(logoUrl);
-      const blob = await response.blob();
-      logoDataUrl = await new Promise<string>((resolve) => {
-        const reader = new FileReader();
-        reader.onloadend = () => resolve(reader.result as string);
-        reader.readAsDataURL(blob);
-      });
-      doc.addImage(logoDataUrl, "JPEG", pageWidth - 44, 6, 30, 25);
+      doc.addImage(logoDataUrl, "PNG", pageWidth - 48, 5, 34, 30);
     } catch {
-      // Logo loading failed, continue without it
+      // silently skip logo if it fails
     }
   }
 
-  // Cover / header
-  doc.setFillColor(...brand.navy);
-  doc.rect(0, 0, pageWidth, 36, "F");
-  doc.setTextColor(255, 255, 255);
+  // Title text
+  doc.setTextColor(...PDF_BRAND.white);
   doc.setFontSize(22);
   doc.setFont("helvetica", "bold");
-  doc.text(title, 14, 18);
-  doc.setFontSize(10);
-  doc.setFont("helvetica", "normal");
-  doc.text(subtitle, 14, 26);
-  doc.setTextColor(...brand.slate);
-  doc.setFontSize(9);
-  doc.text(`Genere le ${new Intl.DateTimeFormat("fr-FR", { dateStyle: "medium", timeStyle: "short" }).format(new Date())}`, 14, 32);
-  doc.setTextColor(0, 0, 0);
+  doc.text(title, marginLeft, 17);
 
-  let startY = 46;
+  // Subtitle
+  doc.setFontSize(11);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(200, 215, 235);
+  doc.text(subtitle, marginLeft, 25);
+
+  // Generation date
+  doc.setFontSize(8.5);
+  doc.setTextColor(140, 160, 190);
+  const genDate = new Intl.DateTimeFormat("fr-FR", { dateStyle: "medium", timeStyle: "short" }).format(new Date());
+  doc.text(`Genere le ${genDate}`, marginLeft, 33);
+
+  doc.setTextColor(0, 0, 0);
+  let startY = 50;
+
+  // ═══════════════════════════════════════════
+  //  SECTIONS
+  // ═══════════════════════════════════════════
 
   for (const section of sections) {
     const hasChart = Boolean(section.chartImage);
@@ -264,84 +393,127 @@ export async function downloadPdf(
     const hasIntro = Boolean(section.intro);
     if (!hasChart && !hasTable && !hasHighlights && !hasNotes && !hasIntro) continue;
 
-    // Check if we need a new page
-    if (startY > pageHeight - 40) {
+    // ─── New page check ───
+    if (startY > safeBottom - 30) {
       doc.addPage();
-      startY = 18;
+      drawPageHeader(doc, title, pageWidth);
+      startY = 22;
     }
 
-    // Section title
-    doc.setDrawColor(...brand.soft);
-    doc.setFillColor(...brand.soft);
-    doc.roundedRect(14, startY - 4, contentWidth, 10, 2, 2, "F");
-    doc.setFontSize(12);
+    // ─── Section title bar ───
+    doc.setFillColor(...PDF_BRAND.cyan);
+    doc.rect(marginLeft, startY - 1, 3, 8, "F"); // accent bar left
+    doc.setFillColor(...PDF_BRAND.softer);
+    doc.roundedRect(marginLeft + 4, startY - 3, contentWidth - 4, 10, 1.5, 1.5, "F");
+    doc.setFontSize(11);
     doc.setFont("helvetica", "bold");
-    doc.setTextColor(...brand.navy);
-    doc.text(section.title, 18, startY + 2);
-    startY += 12;
+    doc.setTextColor(...PDF_BRAND.navy);
+    doc.text(section.title, marginLeft + 8, startY + 3.5);
+    doc.setFont("helvetica", "normal");
+    startY += 13;
 
+    // ─── Intro text ───
     if (section.intro) {
-      doc.setFontSize(9);
-      doc.setFont("helvetica", "normal");
-      doc.setTextColor(...brand.slate);
+      doc.setFontSize(8.5);
+      doc.setTextColor(...PDF_BRAND.slate);
       const introLines = doc.splitTextToSize(section.intro, contentWidth);
-      doc.text(introLines, 14, startY);
-      startY += (introLines.length * 4.2) + 3;
+      doc.text(introLines, marginLeft, startY);
+      startY += (introLines.length * 4) + 4;
     }
 
+    // ─── Highlight KPI cards ───
     if (section.highlights?.length) {
-      const gap = 4;
-      const cardWidth = (contentWidth - (gap * (section.highlights.length - 1))) / Math.max(section.highlights.length, 1);
-      let cardX = 14;
+      const count = section.highlights.length;
+      const gap = 5;
+      const cardWidth = (contentWidth - (gap * (count - 1))) / Math.max(count, 1);
+      const cardHeight = 18;
+      let cardX = marginLeft;
+
       for (const item of section.highlights) {
-        doc.setFillColor(248, 250, 252);
-        doc.setDrawColor(226, 232, 240);
-        doc.roundedRect(cardX, startY, cardWidth, 16, 2, 2, "FD");
+        // Card background
+        doc.setFillColor(...PDF_BRAND.white);
+        doc.setDrawColor(...PDF_BRAND.border);
+        doc.setLineWidth(0.3);
+        doc.roundedRect(cardX, startY, cardWidth, cardHeight, 2, 2, "FD");
+
+        // Top accent line
+        doc.setFillColor(...PDF_BRAND.cyan);
+        doc.rect(cardX + 3, startY + 1, cardWidth - 6, 0.8, "F");
+
+        // Label
         doc.setFontSize(7);
-        doc.setTextColor(...brand.slate);
-        doc.text(item.label.toUpperCase(), cardX + 3, startY + 5);
-        doc.setFontSize(11);
+        doc.setTextColor(...PDF_BRAND.slateMuted);
+        doc.setFont("helvetica", "normal");
+        doc.text(item.label.toUpperCase(), cardX + 4, startY + 6.5);
+
+        // Value — larger, bold, navy
+        doc.setFontSize(13);
         doc.setFont("helvetica", "bold");
-        doc.setTextColor(...brand.navy);
-        doc.text(item.value, cardX + 3, startY + 11);
+        doc.setTextColor(...PDF_BRAND.navy);
+        // Replace non-breaking spaces in the value too
+        const cleanValue = item.value.replace(/[\u00A0\u202F]/g, " ");
+        doc.text(cleanValue, cardX + 4, startY + 14);
+
         doc.setFont("helvetica", "normal");
         cardX += cardWidth + gap;
       }
-      startY += 21;
+      startY += cardHeight + 6;
     }
 
-    // Chart image
+    // ─── Chart image ───
     if (section.chartImage) {
-      const chartHeight = 70; // fixed height for chart images in mm
-      if (startY + chartHeight > pageHeight - 20) {
-        doc.addPage();
-        startY = 18;
-      }
+      // Determine proper chart dimensions from image aspect ratio
+      const chartDisplayWidth = contentWidth;
+      let chartDisplayHeight = 65; // default
+
       try {
-        doc.setDrawColor(226, 232, 240);
-        doc.roundedRect(14, startY, contentWidth, chartHeight, 2, 2, "S");
-        doc.addImage(section.chartImage, "PNG", 14, startY, contentWidth, chartHeight);
-        startY += chartHeight + 6;
+        // Decode image to get actual dimensions
+        const img = new Image();
+        const loaded = await new Promise<boolean>((resolve) => {
+          img.onload = () => resolve(true);
+          img.onerror = () => resolve(false);
+          img.src = section.chartImage!;
+        });
+        if (loaded && img.naturalWidth > 0 && img.naturalHeight > 0) {
+          const ratio = img.naturalHeight / img.naturalWidth;
+          chartDisplayHeight = Math.min(Math.round(chartDisplayWidth * ratio), 85);
+          chartDisplayHeight = Math.max(chartDisplayHeight, 40);
+        }
+      } catch {
+        // keep defaults
+      }
+
+      if (startY + chartDisplayHeight > safeBottom) {
+        doc.addPage();
+        drawPageHeader(doc, title, pageWidth);
+        startY = 22;
+      }
+
+      try {
+        // Light border around chart
+        doc.setDrawColor(...PDF_BRAND.border);
+        doc.setLineWidth(0.2);
+        doc.roundedRect(marginLeft, startY, chartDisplayWidth, chartDisplayHeight, 1.5, 1.5, "S");
+        doc.addImage(section.chartImage, "PNG", marginLeft + 0.5, startY + 0.5, chartDisplayWidth - 1, chartDisplayHeight - 1);
+        startY += chartDisplayHeight + 6;
       } catch {
         // Skip if image fails
       }
     }
 
-    // Table
+    // ─── Data table ───
     if (hasTable) {
-      if (startY > pageHeight - 30) {
+      if (startY > safeBottom - 20) {
         doc.addPage();
-        startY = 18;
+        drawPageHeader(doc, title, pageWidth);
+        startY = 22;
       }
 
-      const cols = section.columns ?? getColumns(section.rows).map((k) => ({ key: k, label: k }));
+      const cols: NonNullable<PdfSection["columns"]> =
+        section.columns ?? getColumns(section.rows).map((k) => ({ key: k, label: k }));
       const head = [cols.map((c) => c.label)];
       const body = section.rows.map((row) =>
-        cols.map((c) => {
-          const v = row[c.key];
-          if (typeof v === "number") return formatNum(v);
-          return toStr(v);
-        }),
+        cols.map((c) => formatCellForPdf(row[c.key], c.format)),
       );
 
       autoTable(doc, {
@@ -350,52 +522,74 @@ export async function downloadPdf(
         body,
         theme: "grid",
         headStyles: {
-          fillColor: [...brand.navy],
-          textColor: [255, 255, 255],
+          fillColor: [...PDF_BRAND.navy],
+          textColor: [...PDF_BRAND.white],
           fontSize: 8,
           fontStyle: "bold",
+          cellPadding: 3,
+          halign: "center",
         },
-        bodyStyles: { fontSize: 7.5, textColor: [30, 41, 59], cellPadding: 2.5 },
-        alternateRowStyles: { fillColor: [...brand.soft] },
-        margin: { left: 14, right: 14 },
-        styles: { overflow: "linebreak", lineColor: [226, 232, 240], lineWidth: 0.1 },
+        bodyStyles: {
+          fontSize: 7.5,
+          textColor: [...PDF_BRAND.navyLight],
+          cellPadding: 2.5,
+          halign: "right",
+        },
+        columnStyles: {
+          0: { halign: "left", fontStyle: "bold" },
+        },
+        alternateRowStyles: { fillColor: [...PDF_BRAND.softer] },
+        margin: { left: marginLeft, right: marginRight },
+        styles: {
+          overflow: "linebreak",
+          lineColor: [...PDF_BRAND.border],
+          lineWidth: 0.15,
+        },
+        didDrawPage: (data: { pageNumber: number }) => {
+          // Add header on new pages created by table overflow
+          if (data.pageNumber > 1) {
+            drawPageHeader(doc, title, pageWidth);
+          }
+        },
       });
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const lastTable = (doc as any).lastAutoTable;
-      startY = (lastTable?.finalY ?? startY) + 10;
+      startY = (lastTable?.finalY ?? startY) + 8;
     }
 
+    // ─── Notes ───
     if (section.notes?.length) {
-      if (startY > pageHeight - 26) {
+      if (startY > safeBottom - 16) {
         doc.addPage();
-        startY = 18;
+        drawPageHeader(doc, title, pageWidth);
+        startY = 22;
       }
-      doc.setFontSize(8.5);
-      doc.setTextColor(...brand.slate);
+      doc.setFontSize(7.5);
+      doc.setTextColor(...PDF_BRAND.slateMuted);
+      doc.setFont("helvetica", "italic");
       for (const note of section.notes) {
         const lines = doc.splitTextToSize(`• ${note}`, contentWidth);
-        doc.text(lines, 14, startY);
-        startY += (lines.length * 4) + 1;
+        doc.text(lines, marginLeft, startY);
+        startY += (lines.length * 3.5) + 1.5;
       }
-      startY += 3;
+      doc.setFont("helvetica", "normal");
+      startY += 4;
+    }
+
+    // Small visual separator between sections
+    if (startY < safeBottom - 10) {
+      doc.setDrawColor(...PDF_BRAND.border);
+      doc.setLineWidth(0.15);
+      doc.line(marginLeft + 20, startY, pageWidth - marginLeft - 20, startY);
+      startY += 6;
     }
   }
 
-  // Footer + logo on each page
-  const pageCount = doc.getNumberOfPages();
-  for (let i = 1; i <= pageCount; i++) {
-    doc.setPage(i);
-    doc.setDrawColor(...brand.soft);
-    doc.line(14, pageHeight - 12, pageWidth - 14, pageHeight - 12);
-    doc.setFontSize(8);
-    doc.setTextColor(...brand.slate);
-    doc.text(
-      `Port Pulse — Pakazure | ${new Date().toLocaleDateString("fr-FR")} | Page ${i}/${pageCount}`,
-      14,
-      pageHeight - 8,
-    );
-  }
+  // ═══════════════════════════════════════════
+  //  FOOTERS ON ALL PAGES
+  // ═══════════════════════════════════════════
+  drawFooters(doc, doc.getNumberOfPages(), pageWidth, pageHeight);
 
   doc.save(filename);
 }

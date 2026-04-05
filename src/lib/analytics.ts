@@ -3,6 +3,8 @@
  * Provides anomaly detection, insights, cross-analysis, and intelligence.
  */
 
+import { INTELLIGENCE_THRESHOLDS, hasSufficientPearsonSample } from "@/lib/intelligence-config";
+
 type GenericRow = Record<string, unknown>;
 
 /* ── Helpers ── */
@@ -159,7 +161,7 @@ export function analyzeDailyPerformance(
   const avgTtt = avg(recentTtt);
 
   // Anomaly: TEU significantly below average
-  if (sdTeu > 0 && totalTeu < avgTeu - 1.5 * sdTeu && totalTeu > 0) {
+  if (sdTeu > 0 && totalTeu < avgTeu - (INTELLIGENCE_THRESHOLDS.tttSpikeMultiplier * sdTeu) && totalTeu > 0) {
     insights.push({
       id: "low-volume",
       level: "warning",
@@ -167,7 +169,7 @@ export function analyzeDailyPerformance(
       description: `Le volume du jour (${totalTeu.toLocaleString("fr-FR")} TEU) est significativement inferieur a la moyenne de 30j (${Math.round(avgTeu).toLocaleString("fr-FR")} TEU).`,
       metric: "total_teu",
       value: totalTeu,
-      threshold: avgTeu - 1.5 * sdTeu,
+      threshold: avgTeu - (INTELLIGENCE_THRESHOLDS.tttSpikeMultiplier * sdTeu),
       category: "anomaly",
     });
   }
@@ -186,15 +188,15 @@ export function analyzeDailyPerformance(
   }
 
   // Performance: sous-realisation
-  if (realisationPct > 0 && realisationPct < 85) {
+  if (realisationPct > 0 && realisationPct < INTELLIGENCE_THRESHOLDS.budgetWarningPct) {
     insights.push({
       id: "under-performance",
       level: "warning",
       title: "Sous-realisation budgetaire",
-      description: `Taux de realisation a ${realisationPct.toFixed(1)}% (< 85%). Ecart de ${Math.abs(gapVsForecast).toLocaleString("fr-FR")} TEU vs forecast.`,
+      description: `Taux de realisation a ${realisationPct.toFixed(1)}% (< ${INTELLIGENCE_THRESHOLDS.budgetWarningPct}%). Ecart de ${Math.abs(gapVsForecast).toLocaleString("fr-FR")} TEU vs forecast.`,
       metric: "taux_realisation",
       value: realisationPct,
-      threshold: 85,
+      threshold: INTELLIGENCE_THRESHOLDS.budgetWarningPct,
       category: "performance",
     });
   } else if (realisationPct >= 100) {
@@ -210,7 +212,7 @@ export function analyzeDailyPerformance(
   }
 
   // Capacity: saturation parc
-  if (occupancyPct >= 95) {
+  if (occupancyPct >= INTELLIGENCE_THRESHOLDS.parkCriticalPct) {
     insights.push({
       id: "park-saturation",
       level: "critical",
@@ -218,10 +220,10 @@ export function analyzeDailyPerformance(
       description: `Taux d'occupation a ${occupancyPct.toFixed(1)}%. Capacite quasi-atteinte, risque de blocage operationnel.`,
       metric: "taux_occupation_parc",
       value: occupancyPct,
-      threshold: 95,
+      threshold: INTELLIGENCE_THRESHOLDS.parkCriticalPct,
       category: "capacity",
     });
-  } else if (occupancyPct >= 85) {
+  } else if (occupancyPct >= INTELLIGENCE_THRESHOLDS.parkWarningPct) {
     insights.push({
       id: "park-high",
       level: "warning",
@@ -229,13 +231,13 @@ export function analyzeDailyPerformance(
       description: `Taux d'occupation a ${occupancyPct.toFixed(1)}%. Tendance a surveiller.`,
       metric: "taux_occupation_parc",
       value: occupancyPct,
-      threshold: 85,
+      threshold: INTELLIGENCE_THRESHOLDS.parkWarningPct,
       category: "capacity",
     });
   }
 
   // Reefer capacity
-  if (reeferPct >= 80) {
+  if (reeferPct >= INTELLIGENCE_THRESHOLDS.reeferWarningPct) {
     insights.push({
       id: "reefer-high",
       level: "warning",
@@ -243,13 +245,13 @@ export function analyzeDailyPerformance(
       description: `Taux d'occupation reefers a ${reeferPct.toFixed(1)}%. Planifier une rotation.`,
       metric: "taux_occupation_reefers",
       value: reeferPct,
-      threshold: 80,
+      threshold: INTELLIGENCE_THRESHOLDS.reeferWarningPct,
       category: "capacity",
     });
   }
 
   // TTT anomaly
-  if (avgTtt > 0 && tttMinutes > avgTtt * 1.5) {
+  if (avgTtt > 0 && tttMinutes > avgTtt * INTELLIGENCE_THRESHOLDS.tttSpikeMultiplier) {
     insights.push({
       id: "ttt-high",
       level: "warning",
@@ -257,13 +259,13 @@ export function analyzeDailyPerformance(
       description: `TTT de ${tttMinutes} min depasse de 50% la moyenne (${Math.round(avgTtt)} min). Congestion possible.`,
       metric: "ttt_duree_minutes",
       value: tttMinutes,
-      threshold: avgTtt * 1.5,
+      threshold: avgTtt * INTELLIGENCE_THRESHOLDS.tttSpikeMultiplier,
       category: "anomaly",
     });
   }
 
   // Low productivity
-  if (productivity > 0 && productivity < 20) {
+  if (productivity > 0 && productivity < INTELLIGENCE_THRESHOLDS.productivityWarningMvtsPerHour) {
     insights.push({
       id: "low-productivity",
       level: "warning",
@@ -271,7 +273,7 @@ export function analyzeDailyPerformance(
       description: `Productivite nette a ${productivity.toFixed(1)} mvts/h. En dessous du seuil operationnel.`,
       metric: "kpi_net_prod",
       value: productivity,
-      threshold: 20,
+      threshold: INTELLIGENCE_THRESHOLDS.productivityWarningMvtsPerHour,
       category: "performance",
     });
   }
@@ -356,7 +358,7 @@ export function analyzeMonthly(dailyRows: GenericRow[], gateRows: GenericRow[]):
 
     const insights: Insight[] = [];
 
-    if (realisationPct > 0 && realisationPct < 80) {
+    if (realisationPct > 0 && realisationPct < INTELLIGENCE_THRESHOLDS.operationalWarningPct) {
       insights.push({
         id: `${month}-underperform`,
         level: "warning",
@@ -384,7 +386,7 @@ export function analyzeMonthly(dailyRows: GenericRow[], gateRows: GenericRow[]):
       });
     }
 
-    if (avgOccupancy > 90) {
+    if (avgOccupancy > INTELLIGENCE_THRESHOLDS.parkWarningPct) {
       insights.push({
         id: `${month}-high-occ`,
         level: "warning",
@@ -465,7 +467,7 @@ export function analyzeAnnual(monthlyAnalyses: MonthlyAnalysis[]): AnnualAnalysi
     }
   }
 
-  if (avgOccupancy > 85) {
+  if (avgOccupancy > INTELLIGENCE_THRESHOLDS.parkWarningPct) {
     insights.push({
       id: "annual-occ",
       level: "warning",
@@ -510,7 +512,7 @@ export function buildCrossAnalysis(
       volGate.push({ label: normalizeDate(row.date_rapport), x: teu, y: gate });
     }
   }
-  if (volGate.length > 5) {
+  if (volGate.length > 1) {
     results.push({
       title: "Volume TEU vs Mouvements Gate",
       xLabel: "Volume TEU",
@@ -529,7 +531,7 @@ export function buildCrossAnalysis(
       occVol.push({ label: normalizeDate(row.date_rapport), x: occ, y: teu });
     }
   }
-  if (occVol.length > 5) {
+  if (occVol.length > 1) {
     results.push({
       title: "Occupation Parc vs Volume TEU",
       xLabel: "Taux Occupation (%)",
@@ -548,7 +550,7 @@ export function buildCrossAnalysis(
       tttCam.push({ label: normalizeDate(row.date_rapport), x: cam, y: ttt });
     }
   }
-  if (tttCam.length > 5) {
+  if (tttCam.length > 1) {
     results.push({
       title: "Camions Gate vs TTT",
       xLabel: "Nombre de camions",
@@ -575,7 +577,7 @@ export function buildCrossAnalysis(
       escProd.push({ label: date, x: e.count, y: e.prod / e.count, size: e.units });
     }
   }
-  if (escProd.length > 5) {
+  if (escProd.length > 1) {
     results.push({
       title: "Escales vs Productivite moyenne",
       xLabel: "Nombre d'escales",
@@ -594,7 +596,7 @@ export function buildCrossAnalysis(
       occTtt.push({ label: normalizeDate(row.date_rapport), x: occ, y: ttt });
     }
   }
-  if (occTtt.length > 5) {
+  if (occTtt.length > 1) {
     results.push({
       title: "Occupation Parc vs TTT",
       xLabel: "Taux Occupation (%)",
@@ -611,7 +613,7 @@ export function buildCrossAnalysis(
 
 function computeCorrelation(x: number[], y: number[]): number {
   const n = Math.min(x.length, y.length);
-  if (n < 3) return 0;
+  if (!hasSufficientPearsonSample(n)) return 0;
   const mx = avg(x.slice(0, n));
   const my = avg(y.slice(0, n));
   let num = 0;
@@ -646,7 +648,7 @@ export function generateIntelligence(
 
   // Cross-analysis derived insights
   for (const ca of crossAnalyses) {
-    if (Math.abs(ca.correlation) > 0.7) {
+    if (hasSufficientPearsonSample(ca.points.length) && Math.abs(ca.correlation) > 0.7) {
       const direction = ca.correlation > 0 ? "positive" : "inverse";
       all.push({
         id: `corr-${ca.title}`,

@@ -7,6 +7,7 @@ import {
   BarChart,
   CartesianGrid,
   Cell,
+  LabelList,
   Legend,
   Line,
   LineChart,
@@ -53,6 +54,14 @@ type InsightModel = {
 };
 
 const TONES = ["#06b6d4", "#10b981", "#8b5cf6", "#f59e0b", "#f97316", "#3b82f6"];
+
+function buildChartLabel(value: unknown): string {
+  const numeric = toNumber(value);
+  if (numeric == null || numeric === 0) return "";
+  if (Math.abs(numeric) >= 1000) return numeric.toLocaleString("fr-FR", { maximumFractionDigits: 0 });
+  if (Number.isInteger(numeric)) return String(numeric);
+  return numeric.toLocaleString("fr-FR", { maximumFractionDigits: 1 });
+}
 
 function isTechnicalKey(key: string): boolean {
   const normalized = key.toLowerCase();
@@ -417,7 +426,6 @@ function buildTopList(rows: GenericRow[], numericKeys: string[], labelKey: strin
   const unit = detectUnit(mainKey);
 
   return dedupedRows
-    .slice(0, 5)
     .map((row) => ({
       label: normalizeLabelValue(row[labelKey]),
       value: formatMetricValue(toNumber(row[mainKey]) ?? 0, unit),
@@ -499,7 +507,9 @@ export default function QueryInsights({
                         stroke={TONES[index % TONES.length] ?? "#06b6d4"}
                         strokeWidth={2.4}
                         dot={{ r: 2 }}
-                      />
+                      >
+                        <LabelList dataKey={key} position="top" formatter={buildChartLabel} className="fill-slate-300 text-[10px]" />
+                      </Line>
                     ))}
                   </LineChart>
                 ) : chart.kind === "pie" ? (
@@ -515,6 +525,12 @@ export default function QueryInsights({
                       innerRadius={48}
                       outerRadius={86}
                       paddingAngle={2}
+                      label={({ name, value, percent }) => {
+                        const label = typeof name === "string" ? name : "";
+                        const metric = buildChartLabel(value);
+                        const ratio = typeof percent === "number" ? ` (${(percent * 100).toFixed(0)}%)` : "";
+                        return `${label} ${metric}${ratio}`.trim();
+                      }}
                     >
                       {chart.data.map((entry, index) => (
                         <Cell key={`${entry[chart.labelKey]}-${index}`} fill={TONES[index % TONES.length] ?? "#06b6d4"} />
@@ -535,7 +551,9 @@ export default function QueryInsights({
                         name={chart.kind === "histogram" ? "Effectif" : prettifyKey(key)}
                         fill={TONES[index % TONES.length] ?? "#06b6d4"}
                         radius={[8, 8, 0, 0]}
-                      />
+                      >
+                        <LabelList dataKey={key} position="top" formatter={buildChartLabel} className="fill-slate-300 text-[10px]" />
+                      </Bar>
                     ))}
                   </BarChart>
                 )}

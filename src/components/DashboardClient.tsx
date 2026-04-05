@@ -61,6 +61,7 @@ import {
   type MonthlyAnalysis,
   type AnnualAnalysis,
 } from "@/lib/analytics";
+import { ETC_MODEL, INTELLIGENCE_THRESHOLDS, hasSufficientPearsonSample } from "@/lib/intelligence-config";
 import { SEGMENT_ITEMS, type MainTabId, type MenuEntryId, type SegmentId } from "./ui/Navigation";
 import MetricCard from "./ui/MetricCard";
 import DataTable from "./ui/DataTable";
@@ -128,6 +129,7 @@ interface Cumul2026MonthRow {
   latestDate: string;
   nbJours: number;
   gateDayCount: number;
+  gateAverageDayCount: number;
   occupancyDayCount: number;
   productivityCount: number;
   tttObservedDays: number;
@@ -266,6 +268,21 @@ function formatChartExportLabel(value: unknown): string {
   if (Math.abs(number) >= 1000) return formatInteger(number);
   if (Number.isInteger(number)) return String(number);
   return number.toFixed(1);
+}
+
+function buildVisibleChartLabel(
+  options?: {
+    color?: string;
+    position?: "top" | "right" | "insideTop";
+    formatter?: (value: unknown) => string;
+  },
+) {
+  return {
+    fill: options?.color ?? "#cbd5e1",
+    fontSize: 10,
+    position: options?.position,
+    formatter: options?.formatter ?? formatChartExportLabel,
+  };
 }
 
 function renderExportPieValueLabel({
@@ -468,8 +485,8 @@ function formatMonthAxisLabel(value: unknown): string {
   return text;
 }
 
-function buildRowKey(row: GenericRow): string {
-  return [toText(row.rapport_id, ""), toText(row.date_id, ""), toText(row.date_rapport, "")].filter(Boolean).join("|");
+function buildDateJoinKey(row: GenericRow): string {
+  return normalizeDateValue(resolveRowDate(row));
 }
 
 function getDateBounds(year: string, month: string, day: string) {
@@ -548,7 +565,7 @@ function parseEtcEstimate(textValue: unknown, reportDateValue: unknown): Date | 
   const match = text.match(/^(\d{2})\/(\d{2})\/(\d{4})\s+(AM|PM)/i);
   if (!match) return null;
   const [, dd, mm, yyyy, meridiem] = match;
-  const hour = meridiem.toUpperCase() === "AM" ? 10 : 18;
+  const hour = meridiem.toUpperCase() === "AM" ? ETC_MODEL.bulletinAmHourUtc : ETC_MODEL.bulletinPmHourUtc;
   return new Date(Date.UTC(Number(yyyy), Number(mm) - 1, Number(dd), hour, 0));
 }
 
@@ -854,7 +871,7 @@ function buildMonthlyProductivityByLoa(calls: CompletedCall[]) {
 
 function computePearsonCorrelation(points: Array<{ x: number; y: number }>) {
   const valid = points.filter((point) => Number.isFinite(point.x) && Number.isFinite(point.y));
-  if (valid.length < 3) return 0;
+  if (!hasSufficientPearsonSample(valid.length)) return 0;
   const meanX = valid.reduce((sum, point) => sum + point.x, 0) / valid.length;
   const meanY = valid.reduce((sum, point) => sum + point.y, 0) / valid.length;
   let numerator = 0;
@@ -877,6 +894,11 @@ function describeCorrelationStrength(value: number) {
   if (abs >= 0.7) return "forte";
   if (abs >= 0.4) return "moderee";
   return "faible";
+}
+
+function getCorrelationWarning(sampleSize: number): string | null {
+  if (hasSufficientPearsonSample(sampleSize)) return null;
+  return `Echantillon insuffisant: ${sampleSize} point(s), minimum ${INTELLIGENCE_THRESHOLDS.pearsonMinPoints}.`;
 }
 
 function buildCongestionVsOccupationRows(calls: CompletedCall[], monthlyRows: Cumul2026MonthRow[], threshold: number): CorrelationStudyRow[] {
@@ -1015,14 +1037,14 @@ function getProductivityAppreciation(row: GenericRow) {
     };
   }
   if (modeled > 0) {
-    if (observed >= modeled * 1.05) {
+    if (observed >= modeled * (1 + INTELLIGENCE_THRESHOLDS.productivityModelToleranceRatio)) {
       return {
         label: "Positive",
         arrow: "↑",
         className: "bg-emerald-500/15 text-emerald-400",
       };
     }
-    if (observed <= modeled * 0.95) {
+    if (observed <= modeled * (1 - INTELLIGENCE_THRESHOLDS.productivityModelToleranceRatio)) {
       return {
         label: "Negative",
         arrow: "↓",
@@ -1080,9 +1102,12 @@ function buildActiveOperationPredictions(rows: GenericRow[], reportRow: GenericR
     const loaBucket = getLoaBucket(row.loa);
     const hist = histByKey.get(`${shipping}|${loaBucket}`);
     const histProd = hist?.count ? hist.prodSum / hist.count : 0;
-    const histPostOps = hist?.postOpsCount ? hist.postOpsSum / hist.postOpsCount : 1.5;
+    const histPostOps = hist?.postOpsCount ? hist.postOpsSum / hist.postOpsCount : ETC_MODEL.defaultPostOpsHours;
     const observedProd = toNumber(row.net_prod);
-    const modeledProd = observedProd > 0 && histProd > 0 ? (observedProd * 0.7) + (histProd * 0.3) : observedProd || histProd || 25;
+    // ETC convention: blend observed vs historique with a stable 70/30 weighting.
+    const modeledProd = observedProd > 0 && histProd > 0
+      ? (observedProd * ETC_MODEL.observedProductivityWeight) + (histProd * ETC_MODEL.historicalProductivityWeight)
+      : observedProd || histProd || 25;
     const remUnits = toNumber(row.rem_units);
     const atbDate = parsePortEventDate(row.atb, reportDate);
     const ataDate = parsePortEventDate(row.ata_pstn, reportDate);
@@ -1523,9 +1548,8 @@ function buildCumul2026MonthlyRows(
       // Gate averages from gate table (more reliable for TTT)
       const gateMonth = gateByMonth.get(anneeMois) ?? [];
       const activeGate = gateMonth.filter((r) => toNumber(r.ttt_total_camions) > 0);
-      const nbGateDays = Math.max(activeGate.length, 1);
       const gateDayCount = gateMonth.length;
-      const gateDayDivisor = Math.max(gateDayCount, 1);
+      const gateAverageDayCount = Math.max(activeGate.length || gateDayCount, 1);
 
       let tttSum = 0, camionsSum = 0, epSum = 0, evSum = 0, spSum = 0, svSum = 0, mvtSum = 0;
       for (const r of gateMonth) {
@@ -1581,15 +1605,16 @@ function buildCumul2026MonthlyRows(
         // Averages across month
         occupationAvg: occSum / occupancyDayCount,
         reefersAvg: reefSum / occupancyDayCount,
-        tttAvg: tttSum / nbGateDays,
-        camionsAvgJour: camionsSum / gateDayDivisor,
-        mouvementsAvgJour: mvtSum / gateDayDivisor,
-        entreesTotalAvgJour: (epSum + evSum) / gateDayDivisor,
-        sortiesPleinAvgJour: spSum / gateDayDivisor,
-        sortiesVideAvgJour: svSum / gateDayDivisor,
-        sortiesTotalAvgJour: (spSum + svSum) / gateDayDivisor,
-        entreesPleinAvgJour: epSum / gateDayDivisor,
-        entreesVideAvgJour: evSum / gateDayDivisor,
+        gateAverageDayCount,
+        tttAvg: tttSum / gateAverageDayCount,
+        camionsAvgJour: camionsSum / gateAverageDayCount,
+        mouvementsAvgJour: mvtSum / gateAverageDayCount,
+        entreesTotalAvgJour: (epSum + evSum) / gateAverageDayCount,
+        sortiesPleinAvgJour: spSum / gateAverageDayCount,
+        sortiesVideAvgJour: svSum / gateAverageDayCount,
+        sortiesTotalAvgJour: (spSum + svSum) / gateAverageDayCount,
+        entreesPleinAvgJour: epSum / gateAverageDayCount,
+        entreesVideAvgJour: evSum / gateAverageDayCount,
         productivityAverage: prod.count ? prod.prodSum / prod.count : 0,
         // Cumuls gate
         gateEntreesPleins: epSum,
@@ -1660,7 +1685,10 @@ function buildYearWeekdayHeatmapRows(rows: GenericRow[], targetYear: number): We
 
 function buildMonthlyBulletin(dailyRows: GenericRow[], gateRows: GenericRow[]): BulletinMonthRow[] {
   const gateByDate = new Map<string, GenericRow>();
-  for (const row of gateRows) gateByDate.set(buildRowKey(row), row);
+  for (const row of gateRows) {
+    const joinKey = buildDateJoinKey(row);
+    if (joinKey) gateByDate.set(joinKey, row);
+  }
 
   const monthMap = new Map<string, {
     latestDaily: GenericRow | null; latestTime: number;
@@ -1676,7 +1704,7 @@ function buildMonthlyBulletin(dailyRows: GenericRow[], gateRows: GenericRow[]): 
     const monthKey = dateText ? dateText.slice(0, 7) : "";
     if (!monthKey) continue;
     const currentTime = Date.parse(dateText);
-    const gate = gateByDate.get(buildRowKey(row)) ?? {};
+    const gate = gateByDate.get(buildDateJoinKey(row)) ?? {};
     const entry = monthMap.get(monthKey) ?? {
       latestDaily: null, latestTime: -Infinity,
       gateCamionsSum: 0, gateMovementsSum: 0,
@@ -2260,8 +2288,7 @@ export default function DashboardClient({
   const cumul2026Annual = useMemo(() => {
     const monthCount = cumul2026Monthly.length || 1;
     const totalDailyCount = cumul2026Monthly.reduce((s, r) => s + r.occupancyDayCount, 0) || 1;
-    const totalGateDays = cumul2026Monthly.reduce((s, r) => s + r.gateDayCount, 0) || 1;
-    const totalObservedTttDays = cumul2026Monthly.reduce((s, r) => s + r.tttObservedDays, 0) || 1;
+    const totalGateAverageDays = cumul2026Monthly.reduce((s, r) => s + r.gateAverageDayCount, 0) || 1;
     const totalProductivityCount = cumul2026Monthly.reduce((s, r) => s + r.productivityCount, 0) || 1;
     const totalTeu = cumul2026Monthly.reduce((s, r) => s + r.totalTeu, 0);
     const totalForecast = cumul2026Monthly.reduce((s, r) => s + r.totalForecast, 0);
@@ -2279,22 +2306,22 @@ export default function DashboardClient({
       gateSortiesPleins: cumul2026Monthly.reduce((s, r) => s + r.gateSortiesPleins, 0),
       gateSortiesVides: cumul2026Monthly.reduce((s, r) => s + r.gateSortiesVides, 0),
       totalCamions: cumul2026Monthly.reduce((s, r) => s + r.totalCamions, 0),
-      totalMouvements: cumul2026Monthly.reduce((s, r) => s + (r.mouvementsAvgJour * r.gateDayCount), 0),
+      totalMouvements: cumul2026Monthly.reduce((s, r) => s + (r.mouvementsAvgJour * r.gateAverageDayCount), 0),
       tauxRealisationLast: totalForecast > 0 ? (totalTeu / totalForecast) * 100 : 0,
       occupationAvg: cumul2026Monthly.reduce((s, r) => s + (r.occupationAvg * r.occupancyDayCount), 0) / totalDailyCount,
       reefersAvg: cumul2026Monthly.reduce((s, r) => s + (r.reefersAvg * r.occupancyDayCount), 0) / totalDailyCount,
-      tttAvg: cumul2026Monthly.reduce((s, r) => s + (r.tttAvg * r.tttObservedDays), 0) / totalObservedTttDays,
-      camionsAvgJour: cumul2026Monthly.reduce((s, r) => s + (r.camionsAvgJour * r.gateDayCount), 0) / totalGateDays,
-      mouvementsAvgJour: cumul2026Monthly.reduce((s, r) => s + (r.mouvementsAvgJour * r.gateDayCount), 0) / totalGateDays,
-      entreesTotalAvgJour: cumul2026Monthly.reduce((s, r) => s + (r.entreesTotalAvgJour * r.gateDayCount), 0) / totalGateDays,
-      sortiesTotalAvgJour: cumul2026Monthly.reduce((s, r) => s + (r.sortiesTotalAvgJour * r.gateDayCount), 0) / totalGateDays,
-      sortiesPleinAvgJour: cumul2026Monthly.reduce((s, r) => s + (r.sortiesPleinAvgJour * r.gateDayCount), 0) / totalGateDays,
-      sortiesVideAvgJour: cumul2026Monthly.reduce((s, r) => s + (r.sortiesVideAvgJour * r.gateDayCount), 0) / totalGateDays,
-      entreesPleinAvgJour: cumul2026Monthly.reduce((s, r) => s + (r.entreesPleinAvgJour * r.gateDayCount), 0) / totalGateDays,
-      entreesVideAvgJour: cumul2026Monthly.reduce((s, r) => s + (r.entreesVideAvgJour * r.gateDayCount), 0) / totalGateDays,
+      tttAvg: cumul2026Monthly.reduce((s, r) => s + (r.tttAvg * r.gateAverageDayCount), 0) / totalGateAverageDays,
+      camionsAvgJour: cumul2026Monthly.reduce((s, r) => s + (r.camionsAvgJour * r.gateAverageDayCount), 0) / totalGateAverageDays,
+      mouvementsAvgJour: cumul2026Monthly.reduce((s, r) => s + (r.mouvementsAvgJour * r.gateAverageDayCount), 0) / totalGateAverageDays,
+      entreesTotalAvgJour: cumul2026Monthly.reduce((s, r) => s + (r.entreesTotalAvgJour * r.gateAverageDayCount), 0) / totalGateAverageDays,
+      sortiesTotalAvgJour: cumul2026Monthly.reduce((s, r) => s + (r.sortiesTotalAvgJour * r.gateAverageDayCount), 0) / totalGateAverageDays,
+      sortiesPleinAvgJour: cumul2026Monthly.reduce((s, r) => s + (r.sortiesPleinAvgJour * r.gateAverageDayCount), 0) / totalGateAverageDays,
+      sortiesVideAvgJour: cumul2026Monthly.reduce((s, r) => s + (r.sortiesVideAvgJour * r.gateAverageDayCount), 0) / totalGateAverageDays,
+      entreesPleinAvgJour: cumul2026Monthly.reduce((s, r) => s + (r.entreesPleinAvgJour * r.gateAverageDayCount), 0) / totalGateAverageDays,
+      entreesVideAvgJour: cumul2026Monthly.reduce((s, r) => s + (r.entreesVideAvgJour * r.gateAverageDayCount), 0) / totalGateAverageDays,
       productivityAverage: cumul2026Monthly.reduce((s, r) => s + (r.productivityAverage * r.productivityCount), 0) / totalProductivityCount,
       monthCount,
-      totalGateDays,
+      totalGateDays: totalGateAverageDays,
     };
   }, [cumul2026Monthly]);
   const cumul2026ShippingAnnual = useMemo(() => {
@@ -2666,7 +2693,7 @@ export default function DashboardClient({
           performanceGapPct: loaAverage > 0 ? ((call.productivity - loaAverage) / loaAverage) * 100 : 0,
         };
       })
-      .filter((call) => call.productivity > 0 && toNumber(call.loaAverageProductivity) > 0 && call.productivity < (toNumber(call.loaAverageProductivity) * 0.85))
+      .filter((call) => call.productivity > 0 && toNumber(call.loaAverageProductivity) > 0 && call.productivity < (toNumber(call.loaAverageProductivity) * INTELLIGENCE_THRESHOLDS.underperformingLoaRatio))
       .sort((a, b) => a.productivity - b.productivity)
       .slice(0, 10),
     [avgProductivityByLoa, completedCalls],
@@ -2703,6 +2730,8 @@ export default function DashboardClient({
         "Affiche la date du bulletin, la date de recuperation et la date de chargement.",
         "Consolide les volumes TEU, le gate, le parc, les reefers et les navires.",
         "Les projections navires en operation utilisent le modele historique par ligne et type LOA.",
+        `Les estimations ETC melangent productivite observee et historique avec un poids ${(ETC_MODEL.observedProductivityWeight * 100).toFixed(0)}/${(ETC_MODEL.historicalProductivityWeight * 100).toFixed(0)}.`,
+        `Quand le bulletin note seulement AM/PM, ETC est interprete a ${String(ETC_MODEL.bulletinAmHourUtc).padStart(2, "0")}:00 UTC pour AM et ${String(ETC_MODEL.bulletinPmHourUtc).padStart(2, "0")}:00 UTC pour PM.`,
       ],
     },
     {
@@ -2712,6 +2741,7 @@ export default function DashboardClient({
         "Import, export, transbo, pleins derives, vides et total sont consolides mois par mois.",
         "Les escales realisees suivent la meme logique de snapshot mensuel.",
         "Les moyennes gate, TTT, occupation et productivite sont calculees sur les jours disponibles de chaque mois.",
+        "Les moyennes gate mensuelles sont harmonisees sur les jours gate actifs pour garder le meme diviseur entre TTT, camions, mouvements, entrees et sorties.",
       ],
     },
     {
@@ -2730,8 +2760,8 @@ export default function DashboardClient({
       description: "Le module intelligence croise les metriques terrestres, parc et navires pour detecter les tensions, les congestions et les sous-performances.",
       bullets: [
         "Congestion = attente ATA→ATB superieure au seuil calcule sur l'historique.",
-        "Sous-performance = productivite navire inferieure a 85% de la moyenne de sa classe LOA.",
-        "Les correlations affichent le coefficient de Pearson r, entre -1 et +1.",
+        `Sous-performance = productivite navire inferieure a ${(INTELLIGENCE_THRESHOLDS.underperformingLoaRatio * 100).toFixed(0)}% de la moyenne de sa classe LOA.`,
+        `Les correlations affichent le coefficient de Pearson r, entre -1 et +1, uniquement a partir de ${INTELLIGENCE_THRESHOLDS.pearsonMinPoints} points minimum.`,
         "r proche de +1 = lien positif fort, r proche de -1 = lien negatif fort, r proche de 0 = lien faible.",
       ],
     },
@@ -3044,11 +3074,11 @@ export default function DashboardClient({
                             rows: monthlyCycleRows as unknown as GenericRow[],
                             columns: [
                               { key: "moisLabel", label: "Mois" },
-                              { key: "escales", label: "Escales" },
-                              { key: "waitHours", label: "ATA→ATB" },
-                              { key: "operationHours", label: "ATB→ATC" },
-                              { key: "postOpsHours", label: "ATC→ATD" },
-                              { key: "totalCycleHours", label: "ATA→ATD" },
+                              { key: "escales", label: "Escales", format: "number" as const },
+                              { key: "waitHours", label: "Attente (h)", format: "decimal" as const },
+                              { key: "operationHours", label: "Operations (h)", format: "decimal" as const },
+                              { key: "postOpsHours", label: "Post-ops (h)", format: "decimal" as const },
+                              { key: "totalCycleHours", label: "Cycle total (h)", format: "decimal" as const },
                             ],
                             chartImage: chartImages[0],
                             intro: "Moyennes horaires mensuelles des cycles navires sur les escales terminees.",
@@ -3060,9 +3090,9 @@ export default function DashboardClient({
                               { key: "nom_navire", label: "Navire" },
                               { key: "shippingLabel", label: "Ligne" },
                               { key: "loaBucket", label: "LOA" },
-                              { key: "rem_units", label: "Restant" },
-                              { key: "observedProd", label: "Prod obs." },
-                              { key: "modeledProd", label: "Prod modele" },
+                              { key: "rem_units", label: "Restant", format: "number" as const },
+                              { key: "observedProd", label: "Prod obs.", format: "decimal" as const },
+                              { key: "modeledProd", label: "Prod modele", format: "decimal" as const },
                               { key: "projectedCompletion", label: "Fin estimee" },
                               { key: "projectedDeparture", label: "Appareillage estime" },
                             ],
@@ -3091,18 +3121,25 @@ export default function DashboardClient({
                               rows: cumul2026Monthly as unknown as GenericRow[],
                               columns: [
                                 { key: "moisLabel", label: "Mois" },
-                                { key: "importTeu", label: "Import" },
-                                { key: "exportTeu", label: "Export" },
-                                { key: "transboTeu", label: "Transbo" },
-                                { key: "pleinsTeu", label: "Pleins" },
-                                { key: "videsTeu", label: "Vides" },
-                                { key: "totalTeu", label: "Total" },
+                                { key: "importTeu", label: "Import", format: "number" as const },
+                                { key: "exportTeu", label: "Export", format: "number" as const },
+                                { key: "transboTeu", label: "Transbo", format: "number" as const },
+                                { key: "pleinsTeu", label: "Pleins", format: "number" as const },
+                                { key: "videsTeu", label: "Vides", format: "number" as const },
+                                { key: "totalTeu", label: "Total", format: "number" as const },
                               ],
                               chartImage: chartImages[0],
                             },
                             {
                               title: "Escales par ligne maritime",
                               rows: cumul2026Shipping as unknown as GenericRow[],
+                              columns: [
+                                { key: "moisLabel", label: "Mois" },
+                                { key: "shipping", label: "Ligne" },
+                                { key: "escales", label: "Escales", format: "number" as const },
+                                { key: "units", label: "EVP", format: "number" as const },
+                                { key: "productivity", label: "Prod (mvts/h)", format: "decimal" as const },
+                              ],
                               chartImage: chartImages[1],
                               intro: "Realisations consolidees par ligne sur l'annee selectionnee.",
                             },
@@ -3119,7 +3156,7 @@ export default function DashboardClient({
                                   { label: "Attente vs congestion", value: `r=${waitingVsCongestionCorrelation.toFixed(2)}` },
                                 ],
                                 notes: [
-                                  "Les coefficients r sont des corrélations de Pearson calculees sur les series mensuelles consolidees.",
+                                  `Les coefficients r sont des correlations de Pearson calculees sur les series mensuelles consolidees avec un minimum de ${INTELLIGENCE_THRESHOLDS.pearsonMinPoints} points.`,
                                   "Une valeur proche de 1 indique un lien positif fort, proche de -1 un lien negatif fort.",
                                 ],
                               },
@@ -3128,17 +3165,26 @@ export default function DashboardClient({
                                 rows: strongestCorrelations as unknown as GenericRow[],
                                 columns: [
                                   { key: "title", label: "Croisement" },
-                                  { key: "xLabel", label: "X" },
-                                  { key: "yLabel", label: "Y" },
-                                  { key: "correlation", label: "r" },
+                                  { key: "xLabel", label: "Axe X" },
+                                  { key: "yLabel", label: "Axe Y" },
+                                  { key: "correlation", label: "Coefficient r", format: "decimal" as const },
                                 ],
                                 chartImage: chartImages[0],
                               },
                               {
                                 title: "Navires sous-performes",
                                 rows: underperformingCalls as unknown as GenericRow[],
+                                columns: [
+                                  { key: "vesselName", label: "Navire" },
+                                  { key: "shipping", label: "Ligne" },
+                                  { key: "loaBucket", label: "LOA" },
+                                  { key: "units", label: "EVP", format: "number" as const },
+                                  { key: "productivity", label: "Prod (mvts/h)", format: "decimal" as const },
+                                  { key: "quayHours", label: "Quai (h)", format: "decimal" as const },
+                                  { key: "monthKey", label: "Mois" },
+                                ],
                                 chartImage: chartImages[1],
-                                intro: "Sous-performance = productivite du navire inferieure a 85% de la moyenne de sa classe LOA.",
+                                intro: `Sous-performance = productivite du navire inferieure a ${(INTELLIGENCE_THRESHOLDS.underperformingLoaRatio * 100).toFixed(0)}% de la moyenne de sa classe LOA.`,
                               },
                             ]
                         : activeTab === "chat"
@@ -4490,8 +4536,8 @@ export default function DashboardClient({
                       <YAxis {...CHART_AXIS_PROPS} />
                       <Tooltip content={<ChartTooltip labelFormatter={formatMonthAxisLabel} valueFormatter={(v) => formatInteger(v)} />} />
                       <Legend wrapperStyle={{ fontSize: 12 }} />
-                      <Bar dataKey="realized" name="Realise" fill="#10b981" radius={[6, 6, 0, 0]} />
-                      <Bar dataKey="budget" name="Budget" fill="#3b82f6" radius={[6, 6, 0, 0]} />
+                      <Bar dataKey="realized" name="Realise" fill="#10b981" radius={[6, 6, 0, 0]} label={buildVisibleChartLabel({ position: "top" })} />
+                      <Bar dataKey="budget" name="Budget" fill="#3b82f6" radius={[6, 6, 0, 0]} label={buildVisibleChartLabel({ position: "top" })} />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
@@ -4514,8 +4560,8 @@ export default function DashboardClient({
                         <YAxis {...CHART_AXIS_PROPS} />
                         <Tooltip content={<ChartTooltip />} />
                         <Legend wrapperStyle={{ fontSize: 12 }} />
-                        <Bar dataKey="camions" name="Mvts moy." fill="#3b82f6" radius={[6, 6, 0, 0]} />
-                        <Bar dataKey="ttt" name="TTT (min)" fill="#f59e0b" radius={[6, 6, 0, 0]} />
+                        <Bar dataKey="camions" name="Mvts moy." fill="#3b82f6" radius={[6, 6, 0, 0]} label={buildVisibleChartLabel({ position: "top" })} />
+                        <Bar dataKey="ttt" name="TTT (min)" fill="#f59e0b" radius={[6, 6, 0, 0]} label={buildVisibleChartLabel({ position: "top" })} />
                       </BarChart>
                     </ResponsiveContainer>
                   </div>
@@ -4536,8 +4582,8 @@ export default function DashboardClient({
                         <YAxis {...CHART_AXIS_PROPS} />
                         <Tooltip content={<ChartTooltip labelFormatter={formatDateLabel} valueFormatter={(v) => `${toNumber(v).toFixed(1)}%`} />} />
                         <Legend wrapperStyle={{ fontSize: 12 }} />
-                        <Line type="monotone" dataKey="taux_occupation_parc" name="Parc" stroke="#10b981" strokeWidth={2.5} dot={false} />
-                        <Line type="monotone" dataKey="taux_occupation_reefers" name="Reefers" stroke="#8b5cf6" strokeWidth={2.5} dot={false} />
+                        <Line type="monotone" dataKey="taux_occupation_parc" name="Parc" stroke="#10b981" strokeWidth={2.5} dot={{ r: 2 }} label={buildVisibleChartLabel()} />
+                        <Line type="monotone" dataKey="taux_occupation_reefers" name="Reefers" stroke="#8b5cf6" strokeWidth={2.5} dot={{ r: 2 }} label={buildVisibleChartLabel()} />
                       </LineChart>
                     </ResponsiveContainer>
                   </div>
@@ -4695,10 +4741,10 @@ export default function DashboardClient({
                           <YAxis {...CHART_AXIS_PROPS} />
                           <Tooltip content={<ChartTooltip labelFormatter={formatDateLabel} valueFormatter={(v) => formatInteger(v)} />} />
                           <Legend wrapperStyle={{ fontSize: 12 }} />
-                          <Line type="monotone" dataKey="import_teu" name="Import" stroke="#3b82f6" strokeWidth={2.2} dot={false} />
-                          <Line type="monotone" dataKey="export_teu" name="Export" stroke="#10b981" strokeWidth={2.2} dot={false} />
-                          <Line type="monotone" dataKey="transbo_teu" name="Transbo" stroke="#f59e0b" strokeWidth={2.2} dot={false} />
-                          <Line type="monotone" dataKey="vides_teu" name="Vides" stroke="#8b5cf6" strokeWidth={2.2} dot={false} />
+                          <Line type="monotone" dataKey="import_teu" name="Import" stroke="#3b82f6" strokeWidth={2.2} dot={{ r: 2 }} label={buildVisibleChartLabel()} />
+                          <Line type="monotone" dataKey="export_teu" name="Export" stroke="#10b981" strokeWidth={2.2} dot={{ r: 2 }} label={buildVisibleChartLabel()} />
+                          <Line type="monotone" dataKey="transbo_teu" name="Transbo" stroke="#f59e0b" strokeWidth={2.2} dot={{ r: 2 }} label={buildVisibleChartLabel()} />
+                          <Line type="monotone" dataKey="vides_teu" name="Vides" stroke="#8b5cf6" strokeWidth={2.2} dot={{ r: 2 }} label={buildVisibleChartLabel()} />
                         </LineChart>
                       </ResponsiveContainer>
                     </div>
@@ -4728,8 +4774,8 @@ export default function DashboardClient({
                             <YAxis {...CHART_AXIS_PROPS} />
                             <Tooltip content={<ChartTooltip labelFormatter={formatDateLabel} valueFormatter={(v) => formatInteger(v)} />} />
                             <Legend wrapperStyle={{ fontSize: 12 }} />
-                            <Bar dataKey="ttt_total_camions" name="Camions" fill="#3b82f6" radius={[6, 6, 0, 0]} />
-                            <Bar dataKey="gate_total_mouvements" name="Mouvements" fill="#f59e0b" radius={[6, 6, 0, 0]} />
+                            <Bar dataKey="ttt_total_camions" name="Camions" fill="#3b82f6" radius={[6, 6, 0, 0]} label={buildVisibleChartLabel({ position: "top" })} />
+                            <Bar dataKey="gate_total_mouvements" name="Mouvements" fill="#f59e0b" radius={[6, 6, 0, 0]} label={buildVisibleChartLabel({ position: "top" })} />
                           </BarChart>
                         </ResponsiveContainer>
                       </div>
@@ -4752,8 +4798,8 @@ export default function DashboardClient({
                               )}
                             />
                             <Legend wrapperStyle={{ fontSize: 12 }} />
-                            <Line yAxisId="left" type="monotone" dataKey="ttt_duree_minutes" name="TTT" stroke="#f59e0b" strokeWidth={2.5} dot={{ r: 2.5 }} />
-                            <Line yAxisId="right" type="monotone" dataKey="ttt_total_camions" name="Camions" stroke="#3b82f6" strokeWidth={2.2} dot={false} />
+                            <Line yAxisId="left" type="monotone" dataKey="ttt_duree_minutes" name="TTT" stroke="#f59e0b" strokeWidth={2.5} dot={{ r: 2.5 }} label={buildVisibleChartLabel()} />
+                            <Line yAxisId="right" type="monotone" dataKey="ttt_total_camions" name="Camions" stroke="#3b82f6" strokeWidth={2.2} dot={{ r: 2 }} label={buildVisibleChartLabel()} />
                           </LineChart>
                         </ResponsiveContainer>
                       </div>
@@ -4785,9 +4831,9 @@ export default function DashboardClient({
                           <YAxis {...CHART_AXIS_PROPS} />
                           <Tooltip content={<ChartTooltip labelFormatter={formatDateLabel} />} />
                           <Legend wrapperStyle={{ fontSize: 12 }} />
-                          <Line type="monotone" dataKey="escales_total_prevues" name="Prevues" stroke="#3b82f6" strokeWidth={2.5} dot={false} />
-                          <Line type="monotone" dataKey="escales_total_realisees" name="Realisees" stroke="#10b981" strokeWidth={2.5} dot={false} />
-                          <Line type="monotone" dataKey="taux_realisation_escales_pct" name="Taux %" stroke="#f59e0b" strokeWidth={2} dot={false} />
+                          <Line type="monotone" dataKey="escales_total_prevues" name="Prevues" stroke="#3b82f6" strokeWidth={2.5} dot={{ r: 2 }} label={buildVisibleChartLabel()} />
+                          <Line type="monotone" dataKey="escales_total_realisees" name="Realisees" stroke="#10b981" strokeWidth={2.5} dot={{ r: 2 }} label={buildVisibleChartLabel()} />
+                          <Line type="monotone" dataKey="taux_realisation_escales_pct" name="Taux %" stroke="#f59e0b" strokeWidth={2} dot={{ r: 2 }} label={buildVisibleChartLabel()} />
                         </LineChart>
                       </ResponsiveContainer>
                     </div>
@@ -4848,9 +4894,9 @@ export default function DashboardClient({
                           <YAxis {...CHART_AXIS_PROPS} />
                           <Tooltip content={<ChartTooltip labelFormatter={formatDateLabel} />} />
                           <Legend wrapperStyle={{ fontSize: 12 }} />
-                          <Line type="monotone" dataKey="kpi_net_prod_moy_appareilles" name="Prod app." stroke="#10b981" strokeWidth={2.5} dot={false} />
-                          <Line type="monotone" dataKey="kpi_net_prod_moy_operation" name="Prod op." stroke="#3b82f6" strokeWidth={2.5} dot={false} />
-                          <Line type="monotone" dataKey="kpi_utilisation_globale_pct" name="Utilisation %" stroke="#f59e0b" strokeWidth={2.2} dot={false} />
+                          <Line type="monotone" dataKey="kpi_net_prod_moy_appareilles" name="Prod app." stroke="#10b981" strokeWidth={2.5} dot={{ r: 2 }} label={buildVisibleChartLabel()} />
+                          <Line type="monotone" dataKey="kpi_net_prod_moy_operation" name="Prod op." stroke="#3b82f6" strokeWidth={2.5} dot={{ r: 2 }} label={buildVisibleChartLabel()} />
+                          <Line type="monotone" dataKey="kpi_utilisation_globale_pct" name="Utilisation %" stroke="#f59e0b" strokeWidth={2.2} dot={{ r: 2 }} label={buildVisibleChartLabel()} />
                         </LineChart>
                       </ResponsiveContainer>
                     </div>
@@ -4935,9 +4981,9 @@ export default function DashboardClient({
                           <YAxis {...CHART_AXIS_PROPS} />
                           <Tooltip content={<ChartTooltip labelFormatter={formatDateLabel} />} />
                           <Legend wrapperStyle={{ fontSize: 12 }} />
-                          <Line type="monotone" dataKey="parc_conteneurs_utilise" name="Utilise" stroke="#10b981" strokeWidth={2.5} dot={false} />
-                          <Line type="monotone" dataKey="parc_conteneurs_disponible" name="Disponible" stroke="#3b82f6" strokeWidth={2.5} dot={false} />
-                          <Line type="monotone" dataKey="taux_occupation_parc" name="Tx %" stroke="#8b5cf6" strokeWidth={2.2} dot={false} />
+                          <Line type="monotone" dataKey="parc_conteneurs_utilise" name="Utilise" stroke="#10b981" strokeWidth={2.5} dot={{ r: 2 }} label={buildVisibleChartLabel()} />
+                          <Line type="monotone" dataKey="parc_conteneurs_disponible" name="Disponible" stroke="#3b82f6" strokeWidth={2.5} dot={{ r: 2 }} label={buildVisibleChartLabel()} />
+                          <Line type="monotone" dataKey="taux_occupation_parc" name="Tx %" stroke="#8b5cf6" strokeWidth={2.2} dot={{ r: 2 }} label={buildVisibleChartLabel()} />
                         </LineChart>
                       </ResponsiveContainer>
                     </div>
@@ -4966,9 +5012,9 @@ export default function DashboardClient({
                           <YAxis {...CHART_AXIS_PROPS} />
                           <Tooltip content={<ChartTooltip labelFormatter={formatDateLabel} />} />
                           <Legend wrapperStyle={{ fontSize: 12 }} />
-                          <Bar dataKey="nb_navires_attendus" name="Attendus" fill="#3b82f6" radius={[6, 6, 0, 0]} />
-                          <Bar dataKey="nb_navires_en_operation" name="En operation" fill="#f59e0b" radius={[6, 6, 0, 0]} />
-                          <Bar dataKey="nb_navires_appareilles" name="Appareilles" fill="#10b981" radius={[6, 6, 0, 0]} />
+                          <Bar dataKey="nb_navires_attendus" name="Attendus" fill="#3b82f6" radius={[6, 6, 0, 0]} label={buildVisibleChartLabel({ position: "top" })} />
+                          <Bar dataKey="nb_navires_en_operation" name="En operation" fill="#f59e0b" radius={[6, 6, 0, 0]} label={buildVisibleChartLabel({ position: "top" })} />
+                          <Bar dataKey="nb_navires_appareilles" name="Appareilles" fill="#10b981" radius={[6, 6, 0, 0]} label={buildVisibleChartLabel({ position: "top" })} />
                         </BarChart>
                       </ResponsiveContainer>
                     </div>
@@ -5196,9 +5242,9 @@ export default function DashboardClient({
                         <YAxis {...CHART_AXIS_PROPS} />
                         <Tooltip content={<ChartTooltip labelFormatter={formatDateLabel} />} />
                         <Legend wrapperStyle={{ fontSize: 12 }} />
-                        <Line type="monotone" dataKey="ttt_total_camions" name="Camions" stroke="#3b82f6" strokeWidth={2.5} dot={false} />
-                        <Line type="monotone" dataKey="ttt_duree_minutes" name="TTT (min)" stroke="#f59e0b" strokeWidth={2.5} dot={false} />
-                        <Line type="monotone" dataKey="kpi_net_prod_moy_appareilles" name="Prod. nette" stroke="#10b981" strokeWidth={2.5} dot={false} />
+                            <Line type="monotone" dataKey="ttt_total_camions" name="Camions" stroke="#3b82f6" strokeWidth={2.5} dot={{ r: 2 }} label={buildVisibleChartLabel()} />
+                            <Line type="monotone" dataKey="ttt_duree_minutes" name="TTT (min)" stroke="#f59e0b" strokeWidth={2.5} dot={{ r: 2 }} label={buildVisibleChartLabel()} />
+                            <Line type="monotone" dataKey="kpi_net_prod_moy_appareilles" name="Prod. nette" stroke="#10b981" strokeWidth={2.5} dot={{ r: 2 }} label={buildVisibleChartLabel()} />
                       </LineChart>
                     </ResponsiveContainer>
                   </div>
@@ -5242,8 +5288,8 @@ export default function DashboardClient({
                             <YAxis {...CHART_AXIS_PROPS} />
                             <Tooltip content={<ChartTooltip labelFormatter={formatDateLabel} valueFormatter={(v) => formatInteger(v)} />} />
                             <Legend wrapperStyle={{ fontSize: 12 }} />
-                            <Area type="monotone" dataKey="total_teu" name="Realise" stroke="#10b981" fill="url(#gradAnalyseReal)" strokeWidth={2.5} />
-                            <Area type="monotone" dataKey="total_forecast" name="Budget" stroke="#3b82f6" fill="none" strokeWidth={2} strokeDasharray="6 3" />
+                            <Area type="monotone" dataKey="total_teu" name="Realise" stroke="#10b981" fill="url(#gradAnalyseReal)" strokeWidth={2.5} label={buildVisibleChartLabel()} />
+                            <Area type="monotone" dataKey="total_forecast" name="Budget" stroke="#3b82f6" fill="none" strokeWidth={2} strokeDasharray="6 3" label={buildVisibleChartLabel()} />
                           </AreaChart>
                         </ResponsiveContainer>
                       </div>
@@ -5270,10 +5316,17 @@ export default function DashboardClient({
                             <YAxis {...CHART_AXIS_PROPS} domain={[0, 120]} />
                             <Tooltip content={<ChartTooltip labelFormatter={formatDateLabel} valueFormatter={(v) => formatPercent(v)} />} />
                             <Legend wrapperStyle={{ fontSize: 12 }} />
-                            <Line type="monotone" dataKey="taux_occupation_parc" name="Parc %" stroke="#8b5cf6" strokeWidth={2.5} dot={{ r: 2 }} />
-                            <Line type="monotone" dataKey="taux_occupation_reefers" name="Reefers %" stroke="#f59e0b" strokeWidth={2.5} dot={{ r: 2 }} />
-                            {/* Threshold line at 95% */}
-                            <Line type="monotone" dataKey={() => 95} name="Seuil critique" stroke="#f43f5e" strokeWidth={1} strokeDasharray="4 4" dot={false} />
+                            <Line type="monotone" dataKey="taux_occupation_parc" name="Parc %" stroke="#8b5cf6" strokeWidth={2.5} dot={{ r: 2 }} label={buildVisibleChartLabel()} />
+                            <Line type="monotone" dataKey="taux_occupation_reefers" name="Reefers %" stroke="#f59e0b" strokeWidth={2.5} dot={{ r: 2 }} label={buildVisibleChartLabel()} />
+                            <Line
+                              type="monotone"
+                              dataKey={() => INTELLIGENCE_THRESHOLDS.parkCriticalPct}
+                              name="Seuil critique"
+                              stroke="#f43f5e"
+                              strokeWidth={1}
+                              strokeDasharray="4 4"
+                              dot={false}
+                            />
                           </LineChart>
                         </ResponsiveContainer>
                       </div>
@@ -5289,8 +5342,8 @@ export default function DashboardClient({
                             <YAxis yAxisId="right" orientation="right" {...CHART_AXIS_PROPS} />
                             <Tooltip content={<ChartTooltip labelFormatter={formatDateLabel} valueFormatter={(v, name) => String(name).includes("TTT") ? formatMinutes(v) : `${toNumber(v).toFixed(1)} mvts/h`} />} />
                             <Legend wrapperStyle={{ fontSize: 12 }} />
-                            <Line yAxisId="left" type="monotone" dataKey="ttt_duree_minutes" name="TTT" stroke="#f59e0b" strokeWidth={2.5} dot={{ r: 2 }} />
-                            <Line yAxisId="right" type="monotone" dataKey="ttt_total_camions" name="Camions" stroke="#3b82f6" strokeWidth={2.2} dot={false} />
+                            <Line yAxisId="left" type="monotone" dataKey="ttt_duree_minutes" name="TTT" stroke="#f59e0b" strokeWidth={2.5} dot={{ r: 2 }} label={buildVisibleChartLabel()} />
+                            <Line yAxisId="right" type="monotone" dataKey="ttt_total_camions" name="Camions" stroke="#3b82f6" strokeWidth={2.2} dot={{ r: 2 }} label={buildVisibleChartLabel()} />
                           </LineChart>
                         </ResponsiveContainer>
                       </div>
@@ -5323,8 +5376,8 @@ export default function DashboardClient({
                             <YAxis {...CHART_AXIS_PROPS} />
                             <Tooltip content={<ChartTooltip valueFormatter={(v) => formatInteger(v)} />} />
                             <Legend wrapperStyle={{ fontSize: 12 }} />
-                            <Bar dataKey="totalTeu" name="Realise" fill="#10b981" radius={[6, 6, 0, 0]} />
-                            <Bar dataKey="forecast" name="Budget" fill="#3b82f6" radius={[6, 6, 0, 0]} />
+                            <Bar dataKey="totalTeu" name="Realise" fill="#10b981" radius={[6, 6, 0, 0]} label={buildVisibleChartLabel({ position: "top" })} />
+                            <Bar dataKey="forecast" name="Budget" fill="#3b82f6" radius={[6, 6, 0, 0]} label={buildVisibleChartLabel({ position: "top" })} />
                           </BarChart>
                         </ResponsiveContainer>
                       </div>
@@ -5368,7 +5421,7 @@ export default function DashboardClient({
                     <MetricCard label="Volume annuel" value={formatInteger(annualAnalysis.totalTeu)} tone="#10b981" icon={<Activity className="h-4 w-4" />} compact />
                     <MetricCard label="Moy. mensuelle" value={formatInteger(annualAnalysis.avgMonthlyTeu)} tone="#3b82f6" icon={<CalendarRange className="h-4 w-4" />} compact />
                     <MetricCard label="Meilleur mois" value={annualAnalysis.bestMonth.split(" ")[0] ?? "—"} tone="#10b981" icon={<Activity className="h-4 w-4" />} compact />
-                    <MetricCard label="Occ. moy." value={formatPercent(annualAnalysis.avgOccupancy)} tone={annualAnalysis.avgOccupancy >= 85 ? "#f43f5e" : "#3b82f6"} icon={<Container className="h-4 w-4" />} compact />
+                    <MetricCard label="Occ. moy." value={formatPercent(annualAnalysis.avgOccupancy)} tone={annualAnalysis.avgOccupancy >= INTELLIGENCE_THRESHOLDS.parkWarningPct ? "#f43f5e" : "#3b82f6"} icon={<Container className="h-4 w-4" />} compact />
                     <MetricCard label="Prod. moy." value={`${annualAnalysis.avgProductivity.toFixed(1)}`} tone="#8b5cf6" icon={<Gauge className="h-4 w-4" />} compact />
                     <MetricCard label="Gate total" value={formatInteger(annualAnalysis.totalGateMovements)} tone="#f59e0b" icon={<Truck className="h-4 w-4" />} compact />
                   </div>
@@ -5389,7 +5442,7 @@ export default function DashboardClient({
                             <YAxis {...CHART_AXIS_PROPS} />
                             <Tooltip content={<ChartTooltip valueFormatter={(v) => formatInteger(v)} />} />
                             <Legend wrapperStyle={{ fontSize: 12 }} />
-                            <Area type="monotone" dataKey="totalTeu" name="Volume" stroke="#10b981" fill="url(#gradAnnual)" strokeWidth={2.5} />
+                            <Area type="monotone" dataKey="totalTeu" name="Volume" stroke="#10b981" fill="url(#gradAnnual)" strokeWidth={2.5} label={buildVisibleChartLabel()} />
                           </AreaChart>
                         </ResponsiveContainer>
                       </div>
@@ -5414,7 +5467,7 @@ export default function DashboardClient({
                           <XAxis dataKey="monthLabel" {...CHART_AXIS_PROPS} tickFormatter={(v) => String(v).split(" ")[0]?.slice(0, 4) ?? v} />
                           <YAxis {...CHART_AXIS_PROPS} />
                           <Tooltip content={<ChartTooltip valueFormatter={(v) => `${toNumber(v) >= 0 ? "+" : ""}${toNumber(v).toFixed(1)}%`} />} />
-                          <Bar dataKey="trendVsPrevious" name="Variation %">
+                          <Bar dataKey="trendVsPrevious" name="Variation %" label={buildVisibleChartLabel({ position: "top" })}>
                             {annualAnalysis.months.map((m, i) => (
                               <Cell key={i} fill={m.trendVsPrevious >= 0 ? "#10b981" : "#f43f5e"} radius={[6, 6, 0, 0] as unknown as number} />
                             ))}
@@ -5458,6 +5511,9 @@ export default function DashboardClient({
                         </ScatterChart>
                       </ResponsiveContainer>
                     </div>
+                    {getCorrelationWarning(ca.points.length) && (
+                      <p className="mt-3 text-[12px] text-amber-400">{getCorrelationWarning(ca.points.length)}</p>
+                    )}
                   </SectionCard>
                 ))}
               </div>
@@ -5482,7 +5538,9 @@ export default function DashboardClient({
                             <span className="text-[11px] text-[var(--text-muted)]">{ca.points.length} pts</span>
                           </div>
                           <p className="mt-2 text-[11px] text-[var(--text-secondary)]">
-                            {abs > 0.7
+                            {!hasSufficientPearsonSample(ca.points.length)
+                              ? "Echantillon insuffisant pour interpreter la correlation."
+                              : abs > 0.7
                               ? `Lien ${ca.correlation > 0 ? "positif" : "negatif"} fort. Les deux indicateurs evoluent ${ca.correlation > 0 ? "ensemble" : "inversement"}.`
                               : abs > 0.4
                                 ? `Lien modere entre ${ca.xLabel} et ${ca.yLabel}.`
@@ -5609,7 +5667,7 @@ export default function DashboardClient({
                   />
                 </SectionCard>
 
-                <SectionCard title="Navires sous-performes" subtitle="Sous-performe = productivite < 85% de la moyenne de son type de navire (classe LOA)">
+                <SectionCard title="Navires sous-performes" subtitle={`Sous-performe = productivite < ${(INTELLIGENCE_THRESHOLDS.underperformingLoaRatio * 100).toFixed(0)}% de la moyenne de son type de navire (classe LOA)`}>
                   <DataTable
                     columns={[
                       { key: "dateRapport", label: "Date", render: (r) => formatDateLabel(r.dateRapport) },
@@ -5631,7 +5689,12 @@ export default function DashboardClient({
               </div>
 
               <div className="grid gap-5 xl:grid-cols-3">
-                <SectionCard title="Congestion vs occupation parc" subtitle={`Correlation ${describeCorrelationStrength(congestionVsOccupationCorrelation)} (${congestionVsOccupationCorrelation.toFixed(2)}) entre attente moyenne congestionnee et taux moyen du parc`}>
+                <SectionCard
+                  title="Congestion vs occupation parc"
+                  subtitle={hasSufficientPearsonSample(congestionVsOccupationRows.length)
+                    ? `Correlation ${describeCorrelationStrength(congestionVsOccupationCorrelation)} (${congestionVsOccupationCorrelation.toFixed(2)}) entre attente moyenne congestionnee et taux moyen du parc`
+                    : "Echantillon insuffisant pour calculer une correlation fiable"}
+                >
                   <div className="h-[280px] min-w-0">
                     <ResponsiveContainer width="100%" height="100%">
                       <ScatterChart>
@@ -5662,9 +5725,17 @@ export default function DashboardClient({
                     Lecture : plus la duree moyenne de congestion avant quai augmente, plus le parc a tendance a se tendre
                     {congestionVsOccupationCorrelation >= 0 ? "." : " inversement."}
                   </p>
+                  {getCorrelationWarning(congestionVsOccupationRows.length) && (
+                    <p className="mt-2 text-[12px] text-amber-400">{getCorrelationWarning(congestionVsOccupationRows.length)}</p>
+                  )}
                 </SectionCard>
 
-                <SectionCard title="Productivite quai vs duree a quai" subtitle={`Correlation ${describeCorrelationStrength(quayVsProductivityCorrelation)} (${quayVsProductivityCorrelation.toFixed(2)}) entre productivite nette et temps passe a quai`}>
+                <SectionCard
+                  title="Productivite quai vs duree a quai"
+                  subtitle={hasSufficientPearsonSample(quayVsProductivityRows.length)
+                    ? `Correlation ${describeCorrelationStrength(quayVsProductivityCorrelation)} (${quayVsProductivityCorrelation.toFixed(2)}) entre productivite nette et temps passe a quai`
+                    : "Echantillon insuffisant pour calculer une correlation fiable"}
+                >
                   <div className="h-[280px] min-w-0">
                     <ResponsiveContainer width="100%" height="100%">
                       <ScatterChart>
@@ -5681,9 +5752,17 @@ export default function DashboardClient({
                   <p className="mt-3 text-[12px] text-[var(--text-secondary)]">
                     Lecture : une correlation negative signifie qu&apos;une meilleure productivite nette contribue a reduire la duree moyenne a quai.
                   </p>
+                  {getCorrelationWarning(quayVsProductivityRows.length) && (
+                    <p className="mt-2 text-[12px] text-amber-400">{getCorrelationWarning(quayVsProductivityRows.length)}</p>
+                  )}
                 </SectionCard>
 
-                <SectionCard title="Navires en attente vs taux de congestion" subtitle={`Correlation ${describeCorrelationStrength(waitingVsCongestionCorrelation)} (${waitingVsCongestionCorrelation.toFixed(2)}) entre volume d'attente et poids mensuel de la congestion`}>
+                <SectionCard
+                  title="Navires en attente vs taux de congestion"
+                  subtitle={hasSufficientPearsonSample(waitingVsCongestionRows.length)
+                    ? `Correlation ${describeCorrelationStrength(waitingVsCongestionCorrelation)} (${waitingVsCongestionCorrelation.toFixed(2)}) entre volume d'attente et poids mensuel de la congestion`
+                    : "Echantillon insuffisant pour calculer une correlation fiable"}
+                >
                   <div className="h-[280px] min-w-0">
                     <ResponsiveContainer width="100%" height="100%">
                       <LineChart data={waitingVsCongestionRows}>
@@ -5695,14 +5774,17 @@ export default function DashboardClient({
                           content={<ChartTooltip valueFormatter={(value, name) => String(name).includes("Taux") ? formatPercent(value) : formatInteger(value)} />}
                         />
                         <Legend wrapperStyle={{ fontSize: 12 }} />
-                        <Bar yAxisId="left" dataKey="waitingCount" name="Navires en attente" fill="#06b6d4" radius={[4, 4, 0, 0]} />
-                        <Line yAxisId="right" type="monotone" dataKey="congestionRate" name="Taux de congestion" stroke="#f59e0b" strokeWidth={2.5} dot={{ r: 3 }} />
+                        <Bar yAxisId="left" dataKey="waitingCount" name="Navires en attente" fill="#06b6d4" radius={[4, 4, 0, 0]} label={buildVisibleChartLabel({ position: "top" })} />
+                        <Line yAxisId="right" type="monotone" dataKey="congestionRate" name="Taux de congestion" stroke="#f59e0b" strokeWidth={2.5} dot={{ r: 3 }} label={buildVisibleChartLabel()} />
                       </LineChart>
                     </ResponsiveContainer>
                   </div>
                   <p className="mt-3 text-[12px] text-[var(--text-secondary)]">
                     Taux de congestion = part des escales du mois dont l&apos;attente ATA→ATB depasse {congestionWaitThreshold.toFixed(1)} h.
                   </p>
+                  {getCorrelationWarning(waitingVsCongestionRows.length) && (
+                    <p className="mt-2 text-[12px] text-amber-400">{getCorrelationWarning(waitingVsCongestionRows.length)}</p>
+                  )}
                 </SectionCard>
               </div>
 
@@ -5758,8 +5840,8 @@ export default function DashboardClient({
                               <p className="text-[11px] uppercase tracking-wider text-[var(--text-muted)]">Productivite reelle</p>
                               <p className="mt-1 text-2xl font-bold text-[var(--text-primary)]">{dailyAnalysis.productivity.toFixed(1)} <span className="text-sm text-[var(--text-muted)]">mvts/h</span></p>
                             </div>
-                            <div className={`rounded-full px-3 py-1 text-[12px] font-medium ${dailyAnalysis.productivity >= 25 ? "bg-emerald-500/10 text-[var(--emerald)]" : dailyAnalysis.productivity >= 20 ? "bg-amber-500/10 text-amber-400" : "bg-rose-500/10 text-rose-400"}`}>
-                              {dailyAnalysis.productivity >= 25 ? "Excellent" : dailyAnalysis.productivity >= 20 ? "Normal" : "Faible"}
+                            <div className={`rounded-full px-3 py-1 text-[12px] font-medium ${dailyAnalysis.productivity >= INTELLIGENCE_THRESHOLDS.productivityWarningMvtsPerHour ? "bg-emerald-500/10 text-[var(--emerald)]" : "bg-rose-500/10 text-rose-400"}`}>
+                              {dailyAnalysis.productivity >= INTELLIGENCE_THRESHOLDS.productivityWarningMvtsPerHour ? "Conforme" : "Faible"}
                             </div>
                           </div>
                         </div>
@@ -5769,8 +5851,8 @@ export default function DashboardClient({
                               <p className="text-[11px] uppercase tracking-wider text-[var(--text-muted)]">Efficacite operationnelle</p>
                               <p className="mt-1 text-2xl font-bold text-[var(--text-primary)]">{dailyAnalysis.realisationPct.toFixed(1)}<span className="text-sm text-[var(--text-muted)]">%</span></p>
                             </div>
-                            <div className={`rounded-full px-3 py-1 text-[12px] font-medium ${dailyAnalysis.realisationPct >= 95 ? "bg-emerald-500/10 text-[var(--emerald)]" : dailyAnalysis.realisationPct >= 80 ? "bg-amber-500/10 text-amber-400" : "bg-rose-500/10 text-rose-400"}`}>
-                              {dailyAnalysis.realisationPct >= 95 ? "Optimal" : dailyAnalysis.realisationPct >= 80 ? "Acceptable" : "Sous-performance"}
+                            <div className={`rounded-full px-3 py-1 text-[12px] font-medium ${dailyAnalysis.realisationPct >= INTELLIGENCE_THRESHOLDS.budgetTargetPct ? "bg-emerald-500/10 text-[var(--emerald)]" : dailyAnalysis.realisationPct >= INTELLIGENCE_THRESHOLDS.operationalWarningPct ? "bg-amber-500/10 text-amber-400" : "bg-rose-500/10 text-rose-400"}`}>
+                              {dailyAnalysis.realisationPct >= INTELLIGENCE_THRESHOLDS.budgetTargetPct ? "Optimal" : dailyAnalysis.realisationPct >= INTELLIGENCE_THRESHOLDS.operationalWarningPct ? "Acceptable" : "Sous-performance"}
                             </div>
                           </div>
                         </div>
@@ -5780,8 +5862,8 @@ export default function DashboardClient({
                               <p className="text-[11px] uppercase tracking-wider text-[var(--text-muted)]">Charge parc</p>
                               <p className="mt-1 text-2xl font-bold text-[var(--text-primary)]">{dailyAnalysis.occupancyPct.toFixed(1)}<span className="text-sm text-[var(--text-muted)]">%</span></p>
                             </div>
-                            <div className={`rounded-full px-3 py-1 text-[12px] font-medium ${dailyAnalysis.occupancyPct >= 95 ? "bg-rose-500/10 text-rose-400" : dailyAnalysis.occupancyPct >= 85 ? "bg-amber-500/10 text-amber-400" : "bg-emerald-500/10 text-[var(--emerald)]"}`}>
-                              {dailyAnalysis.occupancyPct >= 95 ? "Saturation" : dailyAnalysis.occupancyPct >= 85 ? "Tension" : "Fluide"}
+                            <div className={`rounded-full px-3 py-1 text-[12px] font-medium ${dailyAnalysis.occupancyPct >= INTELLIGENCE_THRESHOLDS.parkCriticalPct ? "bg-rose-500/10 text-rose-400" : dailyAnalysis.occupancyPct >= INTELLIGENCE_THRESHOLDS.parkWarningPct ? "bg-amber-500/10 text-amber-400" : "bg-emerald-500/10 text-[var(--emerald)]"}`}>
+                              {dailyAnalysis.occupancyPct >= INTELLIGENCE_THRESHOLDS.parkCriticalPct ? "Saturation" : dailyAnalysis.occupancyPct >= INTELLIGENCE_THRESHOLDS.parkWarningPct ? "Tension" : "Fluide"}
                             </div>
                           </div>
                         </div>
@@ -5792,7 +5874,7 @@ export default function DashboardClient({
 
                 <SectionCard title="Suggestions automatiques" subtitle="Recommandations basees sur les donnees">
                   <div className="space-y-4">
-                    {dailyAnalysis && dailyAnalysis.occupancyPct >= 85 && (
+                    {dailyAnalysis && dailyAnalysis.occupancyPct >= INTELLIGENCE_THRESHOLDS.parkWarningPct && (
                       <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-4">
                         <p className="text-[13px] font-semibold text-amber-400">Risque de saturation parc</p>
                         <p className="mt-1 text-[12px] text-[var(--text-secondary)]">
@@ -5800,7 +5882,7 @@ export default function DashboardClient({
                         </p>
                       </div>
                     )}
-                    {dailyAnalysis && dailyAnalysis.realisationPct < 85 && dailyAnalysis.realisationPct > 0 && (
+                    {dailyAnalysis && dailyAnalysis.realisationPct < INTELLIGENCE_THRESHOLDS.budgetWarningPct && dailyAnalysis.realisationPct > 0 && (
                       <div className="rounded-xl border border-blue-500/20 bg-blue-500/5 p-4">
                         <p className="text-[13px] font-semibold text-blue-400">Activite faible vs forecast</p>
                         <p className="mt-1 text-[12px] text-[var(--text-secondary)]">
@@ -5816,7 +5898,7 @@ export default function DashboardClient({
                         </p>
                       </div>
                     )}
-                    {dailyAnalysis && dailyAnalysis.realisationPct >= 95 && (
+                    {dailyAnalysis && dailyAnalysis.realisationPct >= INTELLIGENCE_THRESHOLDS.budgetTargetPct && (
                       <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-4">
                         <p className="text-[13px] font-semibold text-[var(--emerald)]">Performance optimale</p>
                         <p className="mt-1 text-[12px] text-[var(--text-secondary)]">
@@ -5824,7 +5906,7 @@ export default function DashboardClient({
                         </p>
                       </div>
                     )}
-                    {(!dailyAnalysis || (dailyAnalysis.occupancyPct < 85 && dailyAnalysis.realisationPct >= 85 && dailyAnalysis.tttMinutes <= 60)) && (
+                    {(!dailyAnalysis || (dailyAnalysis.occupancyPct < INTELLIGENCE_THRESHOLDS.parkWarningPct && dailyAnalysis.realisationPct >= INTELLIGENCE_THRESHOLDS.budgetWarningPct && dailyAnalysis.tttMinutes <= 60)) && (
                       <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-4">
                         <p className="text-[13px] font-semibold text-[var(--emerald)]">Operations normales</p>
                         <p className="mt-1 text-[12px] text-[var(--text-secondary)]">

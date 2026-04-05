@@ -1,15 +1,10 @@
 import { type NextRequest, NextResponse } from "next/server";
 
-const MAKE_WEBHOOK_URL = process.env.MAKE_RAPPORT_WEBHOOK_URL;
+const MAKE_WEBHOOK_URL =
+  process.env.MAKE_RAPPORT_WEBHOOK_URL ||
+  "https://hook.eu1.make.com/onau9arf41dswqoz31a8m0mv6xopor5e";
 
 export async function POST(request: NextRequest) {
-  if (!MAKE_WEBHOOK_URL) {
-    return NextResponse.json(
-      { error: "MAKE_RAPPORT_WEBHOOK_URL non configure" },
-      { status: 500 },
-    );
-  }
-
   const body = await request.json();
 
   const {

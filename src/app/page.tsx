@@ -1,8 +1,61 @@
 import DashboardClient from "@/components/DashboardClient";
 import { queryWithClient, withClient } from "@/lib/db";
 import { getUniqueShippingOptions } from "@/lib/shipping";
+import type { MainTabId, MenuEntryId, SegmentId } from "@/components/ui/Navigation";
 
 export const dynamic = "force-dynamic";
+
+const MAIN_TABS = new Set([
+  "situation",
+  "cumul2026",
+  "operations",
+  "bulletin",
+  "segments",
+  "navires",
+  "analyse",
+  "croisee",
+  "intelligence",
+  "chat",
+]);
+
+const SEGMENTS = new Set([
+  "global",
+  "volumes",
+  "gate",
+  "escales",
+  "exploitants",
+  "kpis",
+  "attendus",
+  "appareilles",
+  "operation",
+  "escalesOps",
+  "parc",
+  "rapport",
+]);
+
+const VISIBLE_MENU_ITEMS: MenuEntryId[] = [
+  "situation",
+  "cumul2026",
+  "operations",
+  "bulletin",
+  "navires",
+  "analyse",
+  "croisee",
+  "intelligence",
+  "chat",
+  "segment:global",
+  "segment:volumes",
+  "segment:gate",
+  "segment:escales",
+  "segment:exploitants",
+  "segment:kpis",
+  "segment:attendus",
+  "segment:appareilles",
+  "segment:operation",
+  "segment:escalesOps",
+  "segment:parc",
+  "segment:rapport",
+];
 
 function asNumber(value: unknown): number {
   return typeof value === "number" ? value : Number(value ?? 0);
@@ -12,8 +65,18 @@ function asText(value: unknown): string {
   return typeof value === "string" ? value : String(value ?? "");
 }
 
-export default async function Page() {
+export default async function Page({
+  searchParams,
+}: {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+}) {
   try {
+    const resolvedSearchParams = searchParams ? await searchParams : {};
+    const rawTab = Array.isArray(resolvedSearchParams.tab) ? resolvedSearchParams.tab[0] : resolvedSearchParams.tab;
+    const rawSegment = Array.isArray(resolvedSearchParams.segment) ? resolvedSearchParams.segment[0] : resolvedSearchParams.segment;
+    const initialTab: MainTabId = rawTab && MAIN_TABS.has(rawTab) ? (rawTab as MainTabId) : "situation";
+    const initialSegment: SegmentId = rawSegment && SEGMENTS.has(rawSegment) ? (rawSegment as SegmentId) : "global";
+
     const [
       yearsRes,
       monthsRes,
@@ -57,15 +120,15 @@ export default async function Page() {
         await queryWithClient(client, `SELECT * FROM kct.kct_gate_ttt ORDER BY date_rapport DESC LIMIT 400`),
         await queryWithClient(
           client,
-          `SELECT * FROM kct.kct_escales_armateurs ORDER BY date_rapport DESC LIMIT 20`,
+          `SELECT * FROM kct.kct_escales_armateurs ORDER BY date_rapport DESC LIMIT 400`,
         ),
         await queryWithClient(
           client,
-          `SELECT * FROM kct.kct_exploitants_parc ORDER BY date_rapport DESC LIMIT 20`,
+          `SELECT * FROM kct.kct_exploitants_parc ORDER BY date_rapport DESC LIMIT 120`,
         ),
         await queryWithClient(
           client,
-          `SELECT * FROM kct.kct_navires_attendus ORDER BY date_rapport DESC LIMIT 10`,
+          `SELECT * FROM kct.kct_navires_attendus ORDER BY date_rapport DESC LIMIT 120`,
         ),
         await queryWithClient(
           client,
@@ -73,11 +136,11 @@ export default async function Page() {
         ),
         await queryWithClient(
           client,
-          `SELECT * FROM kct.kct_navires_operation ORDER BY date_rapport DESC LIMIT 20`,
+          `SELECT * FROM kct.kct_navires_operation ORDER BY date_rapport DESC LIMIT 120`,
         ),
         await queryWithClient(
           client,
-          `SELECT * FROM kct.kct_operations_escales ORDER BY date_rapport DESC LIMIT 20`,
+          `SELECT * FROM kct.kct_operations_escales ORDER BY date_rapport DESC LIMIT 200`,
         ),
         await queryWithClient(
           client,
@@ -118,7 +181,15 @@ export default async function Page() {
       kpisData: (kpisRes.rows || []).reverse(),
     };
 
-    return <DashboardClient filterOptions={filterOptions} initialData={initialData} />;
+    return (
+      <DashboardClient
+        filterOptions={filterOptions}
+        initialData={initialData}
+        initialTab={initialTab}
+        initialSegment={initialSegment}
+        visibleMenuItems={VISIBLE_MENU_ITEMS}
+      />
+    );
   } catch (error) {
     console.error("Failed to render dashboard page:", error);
 
@@ -140,6 +211,9 @@ export default async function Page() {
           rapportQuotidien: [],
           kpisData: [],
         }}
+        initialTab="situation"
+        initialSegment="global"
+        visibleMenuItems={VISIBLE_MENU_ITEMS}
         serverError="Connexion a la base de donnees indisponible. Le tableau de bord est charge en mode degrade."
       />
     );

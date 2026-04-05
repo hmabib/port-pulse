@@ -122,8 +122,8 @@ export default function MetricCard({
                 <DeltaBadge delta={delta} />
               </div>
             )}
-            {hint && !compact ? (
-              <p className="mt-2 text-[13px] leading-5 text-[var(--text-secondary)]">{hint}</p>
+            {hint ? (
+              <p className={`mt-2 text-[var(--text-secondary)] ${compact ? "text-[11px] leading-4" : "text-[13px] leading-5"}`}>{hint}</p>
             ) : null}
           </div>
           {sparkData && sparkData.length > 1 && (

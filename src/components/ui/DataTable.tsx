@@ -69,17 +69,17 @@ export default function DataTable({
               rows.map((row, rowIndex) => (
                 <tr
                   key={`${toText(row.id, String(rowIndex))}-${rowIndex}`}
-                  className="border-b border-[var(--line)] transition-colors duration-150 hover:bg-[var(--surface-hover)]"
+                  className={`border-b border-[var(--line)] transition-colors duration-150 hover:bg-[var(--surface-hover)] ${rowIndex % 2 === 0 ? "bg-transparent" : "bg-[color:var(--surface-hover)]/[0.26]"}`}
                 >
                   {columns.map((col) => (
                     <td
                       key={col.key}
-                      className={`whitespace-nowrap px-4 ${compact ? "py-2" : "py-3"} text-[var(--text-primary)] ${
+                      className={`px-4 ${compact ? "py-2" : "py-3"} align-top text-[var(--text-primary)] ${
                         col.align === "right"
-                          ? "text-right font-mono"
+                          ? "whitespace-nowrap text-right font-mono"
                           : col.align === "center"
                             ? "text-center"
-                            : "text-left"
+                            : "text-left leading-5"
                       }`}
                     >
                       {col.render ? col.render(row) : toText(row[col.key])}

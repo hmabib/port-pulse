@@ -1,12 +1,16 @@
 import { Client, QueryResult, QueryResultRow } from "pg";
 
-const connectionString =
-  process.env.DATABASE_URL ||
-  "postgres://ubu9t49cgs8sks:p766560eb47630f600a95195c4d49a525d64a1b940f98ba3868f0b40d55538f3e@c3hsmn51hjafhh.cluster-czrs8kj4isg7.us-east-1.rds.amazonaws.com:5432/d3tkprud8d3nb9";
+function getConnectionString() {
+  const connectionString = process.env.DATABASE_URL;
+  if (!connectionString) {
+    throw new Error("DATABASE_URL manquant. Configurez la variable d'environnement avant d'utiliser la base.");
+  }
+  return connectionString;
+}
 
 function createClient() {
   return new Client({
-    connectionString,
+    connectionString: getConnectionString(),
     connectionTimeoutMillis: 10_000,
     ssl: {
       rejectUnauthorized: false,

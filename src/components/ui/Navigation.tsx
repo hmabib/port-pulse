@@ -11,6 +11,7 @@ import {
   ChevronRight,
   Container,
   Database,
+  FileText,
   Gauge,
   GitCompareArrows,
   Moon,
@@ -322,7 +323,17 @@ export default function Navigation({
         </nav>
 
         <div className="border-t border-[var(--line)] p-4">
-          <div className={`mb-3 flex items-center ${collapsed ? "justify-center" : ""}`}>
+          <div className={`mb-3 flex items-center ${collapsed ? "justify-center" : "gap-2"}`}>
+            <a
+              href="/rapports"
+              className={`inline-flex items-center rounded-lg border border-[var(--cyan)]/30 bg-[var(--cyan)]/10 text-[var(--cyan)] transition hover:bg-[var(--cyan)]/20 ${
+                collapsed ? "justify-center p-2" : "gap-2 px-3 py-2 text-[12px] font-medium"
+              }`}
+              title="Demander un rapport"
+            >
+              <FileText className="h-4 w-4" />
+              {!collapsed ? <span>Rapport IA</span> : null}
+            </a>
             <button
               type="button"
               onClick={() => setMenuSettingsOpen(true)}

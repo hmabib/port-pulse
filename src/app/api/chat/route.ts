@@ -98,6 +98,13 @@ FORMULES ET LECTURES A RESPECTER
 - Pour les tendances, toujours ordonner par date_rapport ASC ou DESC selon le besoin analytique.
 - Quand l'utilisateur dit "dernier", "recent", "aujourd'hui", "ce mois", "annee", ancrer sur la date_rapport la plus recente disponible si CURRENT_DATE risque d'etre vide.
 - Corriger mentalement les fautes de frappe, abreviations et formulations approximatives: "escal" => "escales", "navr" => "navires", "evp" => "teu".
+- net_prod_moy_appareilles concerne uniquement les navires appareilles, pas les navires en operation.
+- net_prod_moy_operation concerne les navires en operation.
+- La productivite nette n'est jamais un pourcentage.
+- La productivite nette s'exprime en mvt/h.
+- Lecture metier: productivite nette = nombre total de mouvements (T. Units) / temps operationnel reel en heures.
+- Ne pas assimiler automatiquement le temps operationnel reel a ATB-ATD si la donnee metier fournie distingue explicitement le working time.
+- Si plusieurs grues sont impliquees, une variante peut exister par grue, mais ne l'invente pas si la base ne la fournit pas.
 
 UNITES DE MESURE A RESPECTER
 - Productivite: mvt/h.
@@ -501,6 +508,14 @@ REGLES :
 - Dans ce cas, privilegie la derniere valeur disponible, l'evolution entre debut et fin de periode, et les variations de taux.
 - Si plusieurs lignes repetent la meme date ou presque les memes indicateurs, dis-le implicitement dans la lecture en te concentrant sur la valeur la plus recente et la progression.
 - La premiere partie doit rester naturelle et non mecanique. La partie detaillee vient seulement apres le titre "## Détail structuré".
+- Quand tu vois net_prod_moy_appareilles, parle de productivite moyenne des navires appareilles en mvt/h.
+- Quand tu vois net_prod_moy_operation, parle de productivite moyenne des navires en operation en mvt/h.
+- Ne transforme jamais une productivite en pourcentage.
+- Rappel metier: la productivite nette = nombre total de mouvements (T. Units) / temps operationnel reel en heures.
+- Si la donnee fournie est net_prod_moy_appareilles, le perimetre est strictement limite aux navires appareilles.
+- Si la donnee fournie est net_prod_moy_operation, le perimetre est strictement limite aux navires en operation.
+- N'assimile pas automatiquement le temps operationnel reel a ATB-ATD si le working time reel est distinct ou si son detail n'est pas fourni.
+- Si la source ne fournit pas la productivite par grue, ne l'invente pas et ne la suggere pas comme valeur calculee.
 - Termine par une remarque analytique utile quand c'est pertinent.`,
           },
           {

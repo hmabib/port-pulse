@@ -41,6 +41,7 @@ import {
   MapPinned,
   PanelLeftClose,
   PanelLeftOpen,
+  RefreshCw,
   Ship,
   Truck,
   X,
@@ -2120,6 +2121,7 @@ export default function DashboardClient({
   const [mounted, setMounted] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [isPngExporting, setIsPngExporting] = useState(false);
+  const [refreshTick, setRefreshTick] = useState(0);
   useEffect(() => { setMounted(true); }, []);
 
   useEffect(() => {
@@ -2136,7 +2138,8 @@ export default function DashboardClient({
   /* ── Fetch filtered data ── */
   useEffect(() => {
     const hasFilters = Boolean(year || month || day || shipping);
-    if (!hasFilters) { setDashboardData(initialData); return; }
+    const shouldFetch = hasFilters || refreshTick > 0;
+    if (!shouldFetch) { setDashboardData(initialData); return; }
 
     const params = new URLSearchParams();
     if (year) params.set("year", year);
@@ -2196,7 +2199,7 @@ export default function DashboardClient({
     };
     fetchData();
     return () => controller.abort();
-  }, [day, filterOptions.shippingLines, initialData, month, shipping, year]);
+  }, [day, filterOptions.shippingLines, initialData, month, refreshTick, shipping, year]);
 
   useEffect(() => {
     const now = new Date();
@@ -2980,6 +2983,16 @@ export default function DashboardClient({
                 >
                   <Brain className="h-3.5 w-3.5" />
                   Chat
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRefreshTick((value) => value + 1)}
+                  disabled={isLoading}
+                  className="inline-flex items-center gap-2 rounded-lg border border-[var(--card-border)] bg-[var(--surface-hover)] px-3.5 py-2 text-[13px] text-[var(--text-secondary)] transition hover:text-[var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-60"
+                  title="Actualiser les donnees"
+                >
+                  <RefreshCw className={`h-3.5 w-3.5 ${isLoading ? "animate-spin" : ""}`} />
+                  Actualiser
                 </button>
                 <button
                   type="button"

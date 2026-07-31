@@ -246,7 +246,9 @@ function toUtc(parts: TimestampParts, year: number): Date | null {
 
 export function normalizeDateOnly(value: unknown): string {
   if (value instanceof Date) return value.toISOString().slice(0, 10);
-  const text = typeof value === "string" ? value : String(value ?? "");
+  const raw = typeof value === "string" ? value : String(value ?? "");
+  /* React sérialise parfois les Date avec le préfixe interne "$D". */
+  const text = raw.startsWith("$D") ? raw.slice(2) : raw;
   const match = text.match(/^(\d{4}-\d{2}-\d{2})/);
   return match ? match[1] : "";
 }

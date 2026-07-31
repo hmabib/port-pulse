@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import Link from "next/link";
 import {
   ArrowLeft,
   CalendarRange,
@@ -188,13 +189,13 @@ export default function RapportForm() {
             <span className="font-semibold text-[var(--cyan)]">{email}</span>.
           </p>
           <div className="flex justify-center gap-3">
-            <a
+            <Link
               href="/"
               className="inline-flex items-center gap-2 rounded-xl border border-[var(--card-border)] bg-[var(--surface-hover)] px-5 py-2.5 text-[13px] font-medium text-[var(--text-secondary)] transition hover:text-[var(--text-primary)]"
             >
               <ArrowLeft className="h-4 w-4" />
               Retour au dashboard
-            </a>
+            </Link>
             <button
               type="button"
               onClick={() => {
@@ -226,13 +227,13 @@ export default function RapportForm() {
       <div className="mx-auto max-w-3xl">
         {/* Header */}
         <div className="mb-8 flex items-center gap-4">
-          <a
+          <Link
             href="/"
             className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--card-border)] bg-[var(--surface-hover)] text-[var(--text-secondary)] transition hover:text-[var(--text-primary)]"
             title="Retour"
           >
             <ArrowLeft className="h-5 w-5" />
-          </a>
+          </Link>
           <div>
             <h1 className="text-2xl font-bold text-[var(--text-primary)]">
               Demande de rapport analytique
@@ -418,12 +419,12 @@ export default function RapportForm() {
 
           {/* ── Actions ── */}
           <div className="flex items-center justify-end gap-3 pt-2">
-            <a
+            <Link
               href="/"
               className="rounded-xl border border-[var(--card-border)] bg-[var(--surface-hover)] px-6 py-3 text-[13px] font-medium text-[var(--text-secondary)] transition hover:text-[var(--text-primary)]"
             >
               Annuler
-            </a>
+            </Link>
             <button
               type="submit"
               disabled={submitting}

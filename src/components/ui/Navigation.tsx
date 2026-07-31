@@ -2,11 +2,13 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import {
   Activity,
   BarChart3,
   Brain,
   CalendarRange,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   Container,
@@ -15,31 +17,36 @@ import {
   Gauge,
   GitCompareArrows,
   Moon,
-  RotateCcw,
   Radar,
-  Settings2,
   Ship,
   Sun,
   Truck,
-  X,
 } from "lucide-react";
 import type { ShippingOption } from "@/lib/shipping";
 import { useTheme } from "@/lib/theme";
 import ShippingBadge from "./ShippingBadge";
 
-const MENU_STORAGE_KEY = "port-pulse.visible-menu-items";
-const REQUIRED_MENU_ITEMS: MenuEntryId[] = ["chat"];
+const MENU_STORAGE_KEY = "port-pulse.open-groups";
+
+/* ══════════════════════════════════════════════════════════════════
+   ARBORESCENCE
+   Cinq vues principales, chacune répondant à une question explicite,
+   plus un tiroir pour les données sources — hors du flux de décision.
+   Les identifiants techniques sont conservés : seule la présentation
+   change, le rendu des vues reste inchangé.
+   ══════════════════════════════════════════════════════════════════ */
 
 const MAIN_TABS = [
-  { id: "situation", label: "Pilotage du jour", icon: CalendarRange },
+  { id: "situation", label: "Pilotage", icon: CalendarRange },
   { id: "cumul2026", label: "Cumul annuel", icon: Activity },
-  { id: "operations", label: "Operations navires", icon: Radar },
   { id: "bulletin", label: "Bulletins mensuels", icon: CalendarRange },
-  { id: "navires", label: "Flotte & parc", icon: Ship },
   { id: "analyse", label: "Analyses KPIs", icon: BarChart3 },
-  { id: "croisee", label: "Correlations", icon: GitCompareArrows },
-  { id: "intelligence", label: "Aide a la decision", icon: Brain },
-  { id: "chat", label: "Chat IA", icon: Brain },
+  { id: "operations", label: "Escales & cycles", icon: Radar },
+  { id: "navires", label: "Flotte & parc", icon: Ship },
+  { id: "intelligence", label: "Aide à la décision", icon: Brain },
+  { id: "croisee", label: "Corrélations", icon: GitCompareArrows },
+  { id: "chat", label: "Assistant", icon: Brain },
+  { id: "quality", label: "Qualité des données", icon: Database },
 ] as const;
 
 export const SEGMENT_ITEMS = [
@@ -50,59 +57,116 @@ export const SEGMENT_ITEMS = [
   { id: "exploitants", label: "Stock par ligne", icon: Container },
   { id: "kpis", label: "KPIs terminal", icon: Gauge },
   { id: "attendus", label: "Navires attendus", icon: Ship },
-  { id: "appareilles", label: "Navires appareilles", icon: Ship },
-  { id: "operation", label: "Navires en operation", icon: Ship },
+  { id: "appareilles", label: "Navires appareillés", icon: Ship },
+  { id: "operation", label: "Navires en opération", icon: Ship },
   { id: "escalesOps", label: "Flux par escale", icon: Database },
-  { id: "parc", label: "Capacite parc", icon: Container },
+  { id: "parc", label: "Capacité parc", icon: Container },
   { id: "rapport", label: "Rapports source", icon: CalendarRange },
 ] as const;
 
 export type MainTabId = (typeof MAIN_TABS)[number]["id"] | "segments";
 export type SegmentId = (typeof SEGMENT_ITEMS)[number]["id"];
-export type MenuEntryId =
-  | MainTabId
-  | `segment:${SegmentId}`;
+export type MenuEntryId = MainTabId | `segment:${SegmentId}`;
 
+/** Libellé unique par vue : menu, titre de page, export PDF et assistant. */
+export const VIEW_LABELS: Record<string, string> = {
+  situation: "Pilotage",
+  cumul2026: "Cumul annuel",
+  bulletin: "Bulletins mensuels",
+  analyse: "Analyses KPIs",
+  operations: "Escales & cycles",
+  navires: "Flotte & parc",
+  intelligence: "Aide à la décision",
+  croisee: "Corrélations",
+  chat: "Assistant",
+  quality: "Qualité des données",
+  segments: "Données sources",
+};
+
+interface NavGroup {
+  key: string;
+  label: string;
+  question: string;
+  icon: React.ComponentType<{ className?: string }>;
+  tabs: MainTabId[];
+  /** Tiroir : replié par défaut, hors du parcours de décision. */
+  drawer?: boolean;
+}
+
+const NAV_GROUPS: NavGroup[] = [
+  {
+    key: "pilotage",
+    label: "Pilotage",
+    question: "Que se passe-t-il aujourd'hui, et dois-je agir ?",
+    icon: CalendarRange,
+    tabs: ["situation"],
+  },
+  {
+    key: "performance",
+    label: "Performance",
+    question: "Tenons-nous nos objectifs sur la période ?",
+    icon: Activity,
+    tabs: ["cumul2026", "bulletin", "analyse"],
+  },
+  {
+    key: "operations",
+    label: "Opérations navires",
+    question: "Comment se déroulent les escales ?",
+    icon: Ship,
+    tabs: ["operations", "navires"],
+  },
+  {
+    key: "analyse",
+    label: "Analyse",
+    question: "Pourquoi ? Quels indicateurs sont liés ?",
+    icon: Brain,
+    tabs: ["intelligence", "croisee"],
+  },
+  {
+    key: "assistant",
+    label: "Assistant",
+    question: "Pose ta question, en français.",
+    icon: Brain,
+    tabs: ["chat"],
+  },
+  {
+    key: "sources",
+    label: "Données & qualité",
+    question: "Que contient précisément la donnée brute ?",
+    icon: Database,
+    tabs: ["quality", "segments"],
+    drawer: true,
+  },
+];
+
+/** Conservé pour compatibilité avec la configuration serveur. */
 export const DEFAULT_VISIBLE_MENU_ITEMS: MenuEntryId[] = [
-  "situation",
-  "cumul2026",
-  "operations",
-  "bulletin",
-  "navires",
-  "analyse",
-  "croisee",
-  "intelligence",
-  "chat",
-  "segment:global",
-  "segment:volumes",
-  "segment:gate",
-  "segment:escales",
-  "segment:exploitants",
-  "segment:kpis",
-  "segment:attendus",
-  "segment:appareilles",
-  "segment:operation",
-  "segment:escalesOps",
-  "segment:parc",
-  "segment:rapport",
-] as const;
+  ...MAIN_TABS.map((t) => t.id as MenuEntryId),
+  ...SEGMENT_ITEMS.map((s) => `segment:${s.id}` as MenuEntryId),
+];
 
-const MENU_GROUPS = [
-  {
-    label: "Vues principales",
-    items: MAIN_TABS.map((item) => ({
-      id: item.id as MenuEntryId,
-      label: item.label,
-    })),
-  },
-  {
-    label: "Vues detaillees",
-    items: SEGMENT_ITEMS.map((item) => ({
-      id: `segment:${item.id}` as MenuEntryId,
-      label: item.label,
-    })),
-  },
-] as const;
+/* ══════════════════════════════════════════════════════════════════ */
+
+function buildTabHref(tab: MainTabId, segment?: SegmentId): string {
+  const params = new URLSearchParams();
+  params.set("tab", tab);
+  if (tab === "segments") params.set("segment", segment ?? "global");
+  return `/?${params.toString()}`;
+}
+
+function readOpenGroups(activeGroupKey: string): Record<string, boolean> {
+  const fallback: Record<string, boolean> = { [activeGroupKey]: true };
+  if (typeof window === "undefined") return fallback;
+  try {
+    const raw = window.localStorage.getItem(MENU_STORAGE_KEY);
+    if (!raw) return fallback;
+    const parsed: unknown = JSON.parse(raw);
+    if (typeof parsed !== "object" || parsed === null) return fallback;
+    return { ...(parsed as Record<string, boolean>), [activeGroupKey]: true };
+  } catch {
+    return fallback;
+  }
+}
 
 interface NavigationProps {
   activeTab: MainTabId;
@@ -118,32 +182,25 @@ interface NavigationProps {
   visibleItems?: MenuEntryId[];
 }
 
-function buildTabHref(tab: MainTabId, segment?: SegmentId): string {
-  const params = new URLSearchParams();
-  params.set("tab", tab);
-  if (tab === "segments") {
-    params.set("segment", segment ?? "global");
-  }
-  return `/?${params.toString()}`;
-}
-
-function NavItem({
+function NavLeaf({
   active,
   label,
   icon: Icon,
   href,
   onActivate,
-  collapsed = false,
+  collapsed,
+  nested,
 }: {
   active: boolean;
   label: string;
   icon: React.ComponentType<{ className?: string }>;
   href: string;
   onActivate: () => void;
-  collapsed?: boolean;
+  collapsed: boolean;
+  nested: boolean;
 }) {
   return (
-    <a
+    <Link
       href={href}
       onClick={(event) => {
         if (
@@ -159,18 +216,19 @@ function NavItem({
         event.preventDefault();
         onActivate();
       }}
-      className={`flex w-full items-center rounded-lg px-3 py-2 text-left text-[13px] transition-all duration-150 ${
-        collapsed ? "justify-center px-2" : "gap-2.5"
+      aria-current={active ? "page" : undefined}
+      title={collapsed ? label : undefined}
+      className={`flex w-full items-center rounded-lg text-left text-[13px] transition-colors duration-150 ${
+        collapsed ? "justify-center px-2 py-2" : `gap-2.5 py-2 ${nested ? "pl-9 pr-3" : "px-3"}`
       } ${
         active
-          ? "bg-[var(--badge-bg)] font-medium text-[var(--cyan)]"
+          ? "bg-[var(--badge-bg)] font-semibold text-[var(--cyan)]"
           : "text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)]"
       }`}
-      title={collapsed ? label : undefined}
     >
       <Icon className="h-3.5 w-3.5 flex-shrink-0" />
       {!collapsed ? <span className="truncate">{label}</span> : null}
-    </a>
+    </Link>
   );
 }
 
@@ -185,91 +243,37 @@ export default function Navigation({
   logoUrl,
   collapsed = false,
   onToggleCollapse,
-  visibleItems = DEFAULT_VISIBLE_MENU_ITEMS,
 }: NavigationProps) {
   const { theme, toggle } = useTheme();
-  const [menuSettingsOpen, setMenuSettingsOpen] = useState(false);
-  const [effectiveVisibleItems, setEffectiveVisibleItems] = useState<MenuEntryId[]>(visibleItems);
+
+  const activeGroupKey = useMemo(
+    () => NAV_GROUPS.find((group) => group.tabs.includes(activeTab))?.key ?? "pilotage",
+    [activeTab],
+  );
+
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() =>
+    readOpenGroups(activeGroupKey),
+  );
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    try {
-      const raw = window.localStorage.getItem(MENU_STORAGE_KEY);
-      if (!raw) {
-        setEffectiveVisibleItems(visibleItems);
-        return;
-      }
-      const parsed = JSON.parse(raw);
-      if (!Array.isArray(parsed)) {
-        setEffectiveVisibleItems(visibleItems);
-        return;
-      }
-      const allowed = new Set<MenuEntryId>(visibleItems);
-      const next = parsed.filter((item): item is MenuEntryId => typeof item === "string" && allowed.has(item as MenuEntryId));
-      const merged = next.length > 0 ? next : visibleItems;
-      const withRequired = [...merged];
-      for (const item of REQUIRED_MENU_ITEMS) {
-        if (allowed.has(item) && !withRequired.includes(item)) {
-          withRequired.push(item);
-        }
-      }
-      setEffectiveVisibleItems(withRequired);
-    } catch {
-      setEffectiveVisibleItems(visibleItems);
-    }
-  }, [visibleItems]);
+    window.localStorage.setItem(MENU_STORAGE_KEY, JSON.stringify(openGroups));
+  }, [openGroups]);
 
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    window.localStorage.setItem(MENU_STORAGE_KEY, JSON.stringify(effectiveVisibleItems));
-  }, [effectiveVisibleItems]);
+  const toggleGroup = (key: string) =>
+    setOpenGroups((current) => ({ ...current, [key]: !current[key] }));
 
-  const visibleSet = new Set<MenuEntryId>(effectiveVisibleItems);
-  const canHideItem = effectiveVisibleItems.length > 1;
-
-  const flatItems = useMemo(() => [
-    ...MAIN_TABS.filter((item) => visibleSet.has(item.id)).map((item) => ({
-      key: item.id as MenuEntryId,
-      label: item.label,
-      icon: item.icon,
-      href: buildTabHref(item.id),
-      active: activeTab === item.id,
-      onActivate: () => onTabChange(item.id),
-    })),
-    ...SEGMENT_ITEMS.filter((item) => visibleSet.has(`segment:${item.id}`)).map((item) => ({
-      key: `segment:${item.id}` as MenuEntryId,
-      label: item.label,
-      icon: item.icon,
-      href: buildTabHref("segments", item.id),
-      active: activeTab === "segments" && activeSegment === item.id,
-      onActivate: () => {
-        onTabChange("segments");
-        onSegmentChange(item.id);
-      },
-    })),
-  ], [activeSegment, activeTab, onSegmentChange, onTabChange, visibleSet]);
-
-  const toggleVisibleItem = (itemId: MenuEntryId) => {
-    setEffectiveVisibleItems((current) => {
-      const exists = current.includes(itemId);
-      if (exists) {
-        if (current.length <= 1) return current;
-        return current.filter((entry) => entry !== itemId);
-      }
-      return [...current, itemId];
-    });
-  };
-
-  const resetVisibleItems = () => {
-    setEffectiveVisibleItems(visibleItems);
-    if (typeof window !== "undefined") {
-      window.localStorage.removeItem(MENU_STORAGE_KEY);
-    }
-  };
+  /**
+   * Le groupe contenant la vue active est toujours ouvert : l'utilisateur doit
+   * voir où il se trouve. L'état est dérivé plutôt que synchronisé par un
+   * effet, ce qui évite un rendu en cascade à chaque changement de vue.
+   */
+  const isGroupOpen = (key: string) => key === activeGroupKey || Boolean(openGroups[key]);
 
   return (
     <aside className={`hidden flex-shrink-0 flex-col lg:flex ${collapsed ? "w-[92px]" : "w-[268px]"}`}>
       <div className="sticky top-4 flex max-h-[calc(100vh-2rem)] flex-col rounded-2xl border border-[var(--card-border)] bg-[var(--card-bg)] shadow-xl backdrop-blur-sm theme-transition">
+        {/* ── En-tête ── */}
         <div className="border-b border-[var(--line)] p-5">
           <div className="flex items-center gap-3">
             <Image
@@ -282,9 +286,13 @@ export default function Navigation({
             {!collapsed ? (
               <div className="min-w-0 flex-1">
                 <h1 className="text-lg font-bold tracking-tight text-[var(--text-primary)]">Port Pulse</h1>
-                <p className="text-[11px] uppercase tracking-widest text-[var(--text-muted)]">Cockpit terminal</p>
+                <p className="text-[11px] uppercase tracking-[0.16em] text-[var(--text-muted)]">
+                  Cockpit terminal
+                </p>
               </div>
-            ) : <div className="flex-1" />}
+            ) : (
+              <div className="flex-1" />
+            )}
             {onToggleCollapse ? (
               <button
                 type="button"
@@ -306,62 +314,139 @@ export default function Navigation({
           </div>
         </div>
 
+        {/* ── Arborescence ── */}
         <nav className="flex-1 overflow-y-auto p-3">
-          <div className="space-y-0.5">
-            {flatItems.map((item) => (
-              <NavItem
-                key={item.key}
-                active={item.active}
-                label={item.label}
-                icon={item.icon}
-                href={item.href}
-                onActivate={item.onActivate}
-                collapsed={collapsed}
-              />
-            ))}
-          </div>
+          {NAV_GROUPS.map((group) => {
+            const GroupIcon = group.icon;
+            const isOpen = isGroupOpen(group.key);
+            const isActiveGroup = group.key === activeGroupKey;
+            const isSingle = group.tabs.length === 1 && group.tabs[0] !== "segments";
+
+            // Groupe à vue unique : rendu directement, sans niveau superflu.
+            if (isSingle) {
+              const tabId = group.tabs[0];
+              const tab = MAIN_TABS.find((t) => t.id === tabId);
+              if (!tab) return null;
+              return (
+                <div key={group.key} className={group.drawer ? "mt-3 border-t border-[var(--line)] pt-3" : "mb-0.5"}>
+                  <NavLeaf
+                    active={activeTab === tabId}
+                    label={group.label}
+                    icon={GroupIcon}
+                    href={buildTabHref(tabId)}
+                    onActivate={() => onTabChange(tabId)}
+                    collapsed={collapsed}
+                    nested={false}
+                  />
+                </div>
+              );
+            }
+
+            return (
+              <div
+                key={group.key}
+                className={group.drawer ? "mt-3 border-t border-[var(--line)] pt-3" : "mb-0.5"}
+              >
+                <button
+                  type="button"
+                  onClick={() => toggleGroup(group.key)}
+                  aria-expanded={isOpen}
+                  title={collapsed ? group.label : group.question}
+                  className={`flex w-full items-center rounded-lg text-left text-[13px] transition-colors duration-150 ${
+                    collapsed ? "justify-center px-2 py-2" : "gap-2.5 px-3 py-2"
+                  } ${
+                    isActiveGroup
+                      ? "font-semibold text-[var(--text-primary)]"
+                      : "text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)]"
+                  }`}
+                >
+                  <GroupIcon className="h-3.5 w-3.5 flex-shrink-0" />
+                  {!collapsed ? (
+                    <>
+                      <span className="flex-1 truncate">{group.label}</span>
+                      <ChevronDown
+                        className={`h-3.5 w-3.5 flex-shrink-0 text-[var(--text-muted)] transition-transform duration-150 ${
+                          isOpen ? "" : "-rotate-90"
+                        }`}
+                      />
+                    </>
+                  ) : null}
+                </button>
+
+                {isOpen && !collapsed ? (
+                  <div className="mt-0.5 space-y-0.5">
+                    {group.tabs.includes("segments")
+                      ? SEGMENT_ITEMS.map((segment) => (
+                          <NavLeaf
+                            key={segment.id}
+                            active={activeTab === "segments" && activeSegment === segment.id}
+                            label={segment.label}
+                            icon={segment.icon}
+                            href={buildTabHref("segments", segment.id)}
+                            onActivate={() => {
+                              onTabChange("segments");
+                              onSegmentChange(segment.id);
+                            }}
+                            collapsed={false}
+                            nested
+                          />
+                        ))
+                      : group.tabs.map((tabId) => {
+                          const tab = MAIN_TABS.find((t) => t.id === tabId);
+                          if (!tab) return null;
+                          return (
+                            <NavLeaf
+                              key={tab.id}
+                              active={activeTab === tab.id}
+                              label={tab.label}
+                              icon={tab.icon}
+                              href={buildTabHref(tab.id)}
+                              onActivate={() => onTabChange(tab.id)}
+                              collapsed={false}
+                              nested
+                            />
+                          );
+                        })}
+                  </div>
+                ) : null}
+              </div>
+            );
+          })}
         </nav>
 
+        {/* ── Pied ── */}
         <div className="border-t border-[var(--line)] p-4">
-          <div className={`mb-3 flex items-center ${collapsed ? "justify-center" : "gap-2"}`}>
-            <a
-              href="/rapports"
-              className={`inline-flex items-center rounded-lg border border-[var(--cyan)]/30 bg-[var(--cyan)]/10 text-[var(--cyan)] transition hover:bg-[var(--cyan)]/20 ${
-                collapsed ? "justify-center p-2" : "gap-2 px-3 py-2 text-[12px] font-medium"
-              }`}
-              title="Demander un rapport"
-            >
-              <FileText className="h-4 w-4" />
-              {!collapsed ? <span>Rapport IA</span> : null}
-            </a>
-            <button
-              type="button"
-              onClick={() => setMenuSettingsOpen(true)}
-              className={`inline-flex items-center rounded-lg border border-[var(--card-border)] bg-[var(--surface-hover)] text-[var(--text-secondary)] transition hover:text-[var(--text-primary)] ${
-                collapsed ? "justify-center p-2" : "gap-2 px-3 py-2 text-[12px]"
-              }`}
-              title="Reglage du menu"
-            >
-              <Settings2 className="h-4 w-4" />
-              {!collapsed ? <span>Reglage menu</span> : null}
-            </button>
-          </div>
+          <Link
+            href="/rapports"
+            title="Demander un rapport"
+            className={`mb-3 inline-flex items-center rounded-lg border border-[var(--cyan)]/30 bg-[var(--badge-bg)] text-[var(--cyan)] transition hover:brightness-110 ${
+              collapsed ? "justify-center p-2" : "gap-2 px-3 py-2 text-[12px] font-medium"
+            }`}
+          >
+            <FileText className="h-4 w-4" />
+            {!collapsed ? <span>Rapport IA</span> : null}
+          </Link>
+
           <div className={`flex items-center ${collapsed ? "justify-center" : "gap-2.5"}`}>
-            <div className={`h-2 w-2 rounded-full ${isLoading ? "animate-pulse bg-amber-400" : "bg-emerald-400"}`} />
+            <div
+              className={`h-2 w-2 rounded-full ${
+                isLoading ? "animate-pulse bg-[var(--warning)]" : "bg-[var(--success)]"
+              }`}
+            />
             {!collapsed ? (
               <p className="text-[12px] text-[var(--text-secondary)]">
-                {isLoading ? "Actualisation..." : "Operationnel"}
+                {isLoading ? "Actualisation…" : "Opérationnel"}
               </p>
             ) : null}
           </div>
+
           {!collapsed ? (
-            <p className="mt-2 text-[11px] text-[var(--text-muted)]">
-              Dernier point : {latestDate}
-            </p>
+            <p className="mt-2 text-[11px] text-[var(--text-muted)]">Dernier bulletin : {latestDate}</p>
           ) : null}
+
           {!collapsed && activeShipping ? (
             <div className="mt-3 rounded-lg border border-[var(--line)] bg-[var(--surface-hover)] p-2.5">
-              <p className="mb-1.5 text-[10px] uppercase tracking-wider text-[var(--text-muted)]">
+              <p className="mb-1.5 text-[10px] uppercase tracking-[0.12em] text-[var(--text-muted)]">
                 Filtre armateur
               </p>
               <ShippingBadge rawValue={activeShipping.label} />
@@ -369,92 +454,6 @@ export default function Navigation({
           ) : null}
         </div>
       </div>
-
-      {menuSettingsOpen ? (
-        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/55 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-2xl rounded-2xl border border-[var(--card-border)] bg-[var(--card-bg)] shadow-2xl">
-            <div className="flex items-start justify-between gap-4 border-b border-[var(--line)] px-5 py-4">
-              <div>
-                <h3 className="text-lg font-semibold text-[var(--text-primary)]">Configuration du menu</h3>
-                <p className="mt-1 text-sm text-[var(--text-secondary)]">
-                  Masque ou affiche les onglets. Le choix est sauvegarde en local sur cet appareil.
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setMenuSettingsOpen(false)}
-                className="rounded-lg p-2 text-[var(--text-muted)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)]"
-                title="Fermer"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-
-            <div className="max-h-[70vh] overflow-y-auto px-5 py-4">
-              <div className="mb-4 rounded-xl border border-[var(--card-border)] bg-[var(--surface-hover)] px-4 py-3 text-sm text-[var(--text-secondary)]">
-                La configuration locale surcharge la configuration par defaut du projet. Minimum visible : 1 entree.
-              </div>
-
-              <div className="space-y-5">
-                {MENU_GROUPS.map((group) => (
-                  <section key={group.label} className="space-y-3">
-                    <div className="flex items-center justify-between gap-3">
-                      <h4 className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--text-muted)]">
-                        {group.label}
-                      </h4>
-                      <span className="text-xs text-[var(--text-muted)]">
-                        {group.items.filter((item) => visibleSet.has(item.id)).length}/{group.items.length} visibles
-                      </span>
-                    </div>
-                    <div className="grid gap-2 md:grid-cols-2">
-                      {group.items.map((item) => {
-                        const checked = visibleSet.has(item.id);
-                        return (
-                          <label
-                            key={item.id}
-                            className={`flex cursor-pointer items-center justify-between gap-3 rounded-xl border px-3 py-3 transition ${
-                              checked
-                                ? "border-cyan-400/30 bg-cyan-500/10"
-                                : "border-[var(--card-border)] bg-[var(--surface-hover)]"
-                            }`}
-                          >
-                            <span className="text-sm font-medium text-[var(--text-primary)]">{item.label}</span>
-                            <input
-                              type="checkbox"
-                              checked={checked}
-                              onChange={() => toggleVisibleItem(item.id)}
-                              disabled={checked && !canHideItem}
-                              className="h-4 w-4 rounded border-[var(--card-border)] bg-[var(--input-bg)] text-cyan-500 focus:ring-cyan-500/30"
-                            />
-                          </label>
-                        );
-                      })}
-                    </div>
-                  </section>
-                ))}
-              </div>
-            </div>
-
-            <div className="flex flex-col gap-3 border-t border-[var(--line)] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-              <button
-                type="button"
-                onClick={resetVisibleItems}
-                className="inline-flex items-center justify-center gap-2 rounded-lg border border-[var(--card-border)] bg-[var(--surface-hover)] px-4 py-2 text-sm text-[var(--text-secondary)] transition hover:text-[var(--text-primary)]"
-              >
-                <RotateCcw className="h-4 w-4" />
-                Reinitialiser
-              </button>
-              <button
-                type="button"
-                onClick={() => setMenuSettingsOpen(false)}
-                className="rounded-lg bg-cyan-500 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-cyan-400"
-              >
-                Enregistrer
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
     </aside>
   );
 }

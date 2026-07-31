@@ -1,6 +1,17 @@
 "use client";
 
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { ChatContext } from "@/lib/chat-context";
+import {
+  CartesianGrid,
+  Legend,
+  Line,
+  LineChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 import {
   Brain,
   CheckCircle2,
@@ -21,8 +32,18 @@ import {
 import MarkdownRenderer from "@/components/chat/MarkdownRenderer";
 import QueryInsights from "@/components/chat/QueryInsights";
 import { downloadExcel } from "@/lib/exports";
+import { seriesColor } from "@/lib/chart-config";
+import ChartTooltip, { CHART_AXIS_PROPS, CHART_GRID_PROPS } from "@/components/ui/ChartTooltip";
 
 /* ────────── Types ────────── */
+
+interface Provenance {
+  sources: string[];
+  periode: string;
+  lignes: number;
+  tentatives: number;
+  couverture: string | null;
+}
 
 interface ChatMessage {
   id: string;
@@ -33,6 +54,7 @@ interface ChatMessage {
   rowCount?: number;
   timestamp: Date;
   topic?: string;
+  provenance?: Provenance | null;
 }
 
 type ParsedAssistantContent = {
@@ -81,16 +103,65 @@ const TOPIC_RULES: Array<{ label: string; patterns: RegExp[] }> = [
 
 /* ────────── Suggestion chips ────────── */
 
-const SUGGESTIONS = [
-  "Combien de navires sont en operation aujourd'hui ?",
-  "Quels sont les 5 derniers navires arrives ?",
-  "Donne-moi les KPIs de la derniere semaine",
-  "Quel est l'etat du parc conteneurs ?",
-  "Combien de camions sont passes au gate aujourd'hui ?",
-  "Quels sont les escales du mois en cours ?",
-  "Montre-moi le rapport quotidien le plus recent",
-  "Quel est le volume TEU de ce mois ?",
-];
+function buildSuggestions(context: ChatContext | null): string[] {
+  if (!context) {
+    return [
+      "Résume la situation opérationnelle la plus récente",
+      "Quels indicateurs demandent une attention immédiate ?",
+      "Quelle est la qualité des données disponibles ?",
+    ];
+  }
+
+  const period = context.periode.label;
+  const firstKpi = context.kpis[0];
+  const alertQuestion = context.alertes[0]
+    ? `Explique l'alerte « ${context.alertes[0].split(" — ")[0]} » et ses causes possibles`
+    : context.qualite.joursManquants > 0
+      ? `Quel est l'impact des ${context.qualite.joursManquants} jours sans bulletin sur cette analyse ?`
+      : "Quelles alertes ou tensions faut-il surveiller sur ce périmètre ?";
+
+  return [
+    `Résume la vue ${context.vueLabel} ${period}`,
+    firstKpi
+      ? `Analyse ${firstKpi.label} sur ${period} et explique son évolution`
+      : `Quels indicateurs expliquent la situation sur ${period} ?`,
+    alertQuestion,
+  ];
+}
+
+interface TimeSeriesShape {
+  dateKey: string;
+  numericKeys: string[];
+  rows: Record<string, unknown>[];
+}
+
+function detectTimeSeries(rows: Record<string, unknown>[]): TimeSeriesShape | null {
+  if (rows.length < 2) return null;
+  const keys = Object.keys(rows[0] ?? {}).filter((key) => !shouldHideColumn(key));
+  const dateKey = keys.find((key) => {
+    if (!/date|jour|mois|periode|timestamp/i.test(key)) return false;
+    const samples = rows.slice(0, 8).map((row) => row[key]).filter((value) => value != null);
+    return samples.length > 0 && samples.every((value) => !Number.isNaN(new Date(String(value)).getTime()));
+  });
+  if (!dateKey) return null;
+
+  const numericKeys = keys
+    .filter((key) => key !== dateKey)
+    .filter((key) => {
+      const samples = rows.slice(0, 12).map((row) => row[key]).filter((value) => value != null && value !== "");
+      return samples.length > 0 && samples.every((value) => Number.isFinite(Number(value)));
+    })
+    .slice(0, 5);
+  if (numericKeys.length === 0) return null;
+
+  return {
+    dateKey,
+    numericKeys,
+    rows: [...rows].sort(
+      (a, b) => new Date(String(a[dateKey])).getTime() - new Date(String(b[dateKey])).getTime(),
+    ),
+  };
+}
 
 function buildSessionSummary(messages: ChatMessage[]): string {
   if (messages.length === 0) return "";
@@ -196,9 +267,51 @@ function formatDisplayValue(key: string, value: unknown): string {
   return String(value);
 }
 
+/** Libellés lisibles des sources, pour ne pas exposer les noms de tables. */
+const SOURCE_LABELS: Record<string, string> = {
+  v_kct_daily: "Bulletins quotidiens",
+  v_kct_weekly: "Consolidé hebdomadaire",
+  v_kct_monthly: "Consolidé mensuel",
+  v_navires_performance: "Performance navires",
+  kct_gate_ttt: "Gate et temps de rotation",
+  kct_parc_conteneurs: "Parc conteneurs",
+  kct_kpis: "Indicateurs terminal",
+  kct_escales_armateurs: "Escales par armateur",
+  kct_exploitants_parc: "Stock par exploitant",
+  kct_navires_attendus: "Navires attendus",
+  kct_navires_appareilles: "Navires appareillés",
+  kct_navires_operation: "Navires en opération",
+  kct_operations_escales: "Flux par escale",
+  kct_rapport_quotidien: "Rapport quotidien",
+  kct_volumes_teu: "Volumes TEU",
+};
+
+/**
+ * Traçabilité de la réponse : sur quelles sources et quelle période le
+ * chiffre a été calculé. Un cockpit dont on ne peut pas remonter les
+ * chiffres cesse d'être un outil de décision.
+ */
+function ProvenanceNote({ provenance }: { provenance: Provenance | null }) {
+  if (!provenance || provenance.sources.length === 0) return null;
+
+  const sources = provenance.sources.map((s) => SOURCE_LABELS[s] ?? s).join(", ");
+
+  return (
+    <div className="rounded-lg border border-[var(--line)] bg-[var(--surface-hover)] px-3 py-2 text-[11px] leading-5 text-[var(--text-muted)]">
+      <span className="font-semibold text-[var(--text-secondary)]">Calculé sur</span> {sources}
+      {" · "}
+      {provenance.periode}
+      {" · "}
+      {provenance.lignes} ligne{provenance.lignes > 1 ? "s" : ""}
+      {provenance.couverture ? ` · ${provenance.couverture}` : ""}
+      {provenance.tentatives > 1 ? " · requête corrigée automatiquement" : ""}
+    </div>
+  );
+}
+
 /* ────────── Component ────────── */
 
-export default function ChatPanel() {
+export default function ChatPanel({ context = null }: { context?: ChatContext | null }) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -209,6 +322,7 @@ export default function ChatPanel() {
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const suggestions = useMemo(() => buildSuggestions(context), [context]);
 
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -363,7 +477,10 @@ export default function ChatPanel() {
         const res = await fetch("/api/chat", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ question, conversation, sessionSummary }),
+          // Le contexte de vue accompagne chaque question : sans lui, une
+          // question de suivi comme « et la productivité ? » perdrait la
+          // période et les filtres que l'utilisateur a sous les yeux.
+          body: JSON.stringify({ question, conversation, sessionSummary, context }),
         });
 
         const data = await res.json();
@@ -377,6 +494,7 @@ export default function ChatPanel() {
           rowCount: data.rowCount ?? 0,
           timestamp: new Date(),
           topic: inferTopic(question, data.rows),
+          provenance: data.provenance ?? null,
         };
 
         setMessages((prev) => [...prev, assistantMsg]);
@@ -395,7 +513,7 @@ export default function ChatPanel() {
         inputRef.current?.focus();
       }
     },
-    [input, isLoading, messages],
+    [context, input, isLoading, messages],
   );
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -409,6 +527,7 @@ export default function ChatPanel() {
 
   function renderDataPreview(msg: ChatMessage) {
     if (!msg.rows || msg.rows.length === 0) return null;
+    const timeSeries = detectTimeSeries(msg.rows);
     const isExpanded = expandedTable.has(msg.id);
     const preview = isExpanded ? msg.rows : msg.rows.slice(0, 5);
     const keys = Object.keys(preview[0] ?? {}).filter((key) => !shouldHideColumn(key));
@@ -435,7 +554,36 @@ export default function ChatPanel() {
           Exporter Excel
         </button>
 
-        {(isExpanded || preview.length <= 5) && preview.length > 0 && (
+        {timeSeries ? (
+          <div className="h-[280px] min-w-0 rounded-lg border border-[var(--card-border)] bg-[var(--card-bg)] p-3">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={timeSeries.rows}>
+                <CartesianGrid {...CHART_GRID_PROPS} />
+                <XAxis
+                  dataKey={timeSeries.dateKey}
+                  {...CHART_AXIS_PROPS}
+                  tickFormatter={(value) => formatDisplayValue(timeSeries.dateKey, value)}
+                  minTickGap={24}
+                />
+                <YAxis {...CHART_AXIS_PROPS} />
+                <Tooltip content={<ChartTooltip />} />
+                <Legend wrapperStyle={{ fontSize: 11 }} />
+                {timeSeries.numericKeys.map((key, index) => (
+                  <Line
+                    key={key}
+                    type="monotone"
+                    dataKey={key}
+                    name={key}
+                    stroke={seriesColor(index)}
+                    strokeWidth={2.2}
+                    dot={{ r: 2 }}
+                    connectNulls={false}
+                  />
+                ))}
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        ) : (isExpanded || preview.length <= 5) && preview.length > 0 ? (
           <div className="overflow-x-auto rounded-lg border border-[var(--card-border)]">
             <table className="w-full text-[11px]">
               <thead>
@@ -465,7 +613,7 @@ export default function ChatPanel() {
               </div>
             )}
           </div>
-        )}
+        ) : null}
       </div>
     );
   }
@@ -498,7 +646,7 @@ export default function ChatPanel() {
             <button
               type="button"
               onClick={startNewSession}
-              className="rounded-lg p-2 text-[var(--text-muted)] transition hover:bg-[var(--surface-hover)] hover:text-[#f43f5e]"
+              className="rounded-lg p-2 text-[var(--text-muted)] transition hover:bg-[var(--surface-hover)] hover:text-[#f87171]"
               title="Nouvelle session"
             >
               <Trash2 className="h-4 w-4" />
@@ -524,7 +672,7 @@ export default function ChatPanel() {
 
             {/* Suggestions */}
             <div className="mt-6 flex max-w-lg flex-wrap justify-center gap-2">
-              {SUGGESTIONS.slice(0, 6).map((s) => (
+              {suggestions.map((s) => (
                 <button
                   key={s}
                   type="button"
@@ -590,6 +738,7 @@ export default function ChatPanel() {
                               <div className="border-t border-[var(--line)] px-3 py-3 space-y-3">
                                 {parsed.detailed ? <MarkdownRenderer content={parsed.detailed} /> : null}
                                 <QueryInsights rows={msg.rows ?? []} rowCount={msg.rowCount ?? 0} />
+                                <ProvenanceNote provenance={msg.provenance ?? null} />
 
                                 {msg.sql ? (
                                   <div className="mt-2">

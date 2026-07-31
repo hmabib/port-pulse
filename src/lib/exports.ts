@@ -88,8 +88,8 @@ export async function downloadElementAsPng(
   if (!element) return;
 
   const isDark = document.documentElement.getAttribute("data-theme") !== "light";
-  const bgColor = isDark ? "#0c1525" : "#ffffff";
-  const textColor = isDark ? "#dbe4f0" : "#0f172a";
+  const bgColor = isDark ? "#0b1a2c" : "#ffffff";
+  const textColor = isDark ? "#dbe4f0" : "#0b2038";
   const mutedColor = isDark ? "#94a3b8" : "#475569";
 
   const wrapper = document.createElement("div");

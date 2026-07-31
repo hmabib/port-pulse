@@ -53,7 +53,7 @@ type InsightModel = {
   topList: ListItem[];
 };
 
-const TONES = ["#06b6d4", "#10b981", "#8b5cf6", "#f59e0b", "#f97316", "#3b82f6"];
+const TONES = ["#1d6fb8", "#2e90d9", "#93cbf2", "#5fb0e8", "#fbbf24", "#164b7e"];
 
 function buildChartLabel(value: unknown): string {
   const numeric = toNumber(value);
@@ -254,7 +254,7 @@ function buildSnapshotKpis(rows: GenericRow[], labelKey: string, numericKeys: st
       label: "Jours affiches",
       value: distinctRows.length.toLocaleString("fr-FR"),
       hint: "Nombre de dates distinctes dans la reponse",
-      tone: "#06b6d4",
+      tone: "#1d6fb8",
       icon: <Hash className="h-4 w-4" />,
     },
   ];
@@ -272,7 +272,7 @@ function buildSnapshotKpis(rows: GenericRow[], labelKey: string, numericKeys: st
         distinctRows.length > 1
           ? `Derniere valeur observee, evolution ${delta >= 0 ? "+" : ""}${formatMetricValue(delta, unit)} sur la periode visible`
           : "Derniere valeur observee",
-      tone: TONES[(index + 1) % TONES.length] ?? "#10b981",
+      tone: TONES[(index + 1) % TONES.length] ?? "#2e90d9",
       icon: index === 0 ? <Sigma className="h-4 w-4" /> : <TrendingUp className="h-4 w-4" />,
     });
   }
@@ -290,7 +290,7 @@ function buildKpis(rows: GenericRow[], rowCount: number, numericKeys: string[]):
         label: prettifyKey(key),
         value: formatMetricValue(toNumber(rows[0][key]) ?? 0, unit),
         hint: unit ? `Unite: ${unit}` : "Valeur calculee sur la reponse",
-        tone: TONES[index % TONES.length] ?? "#06b6d4",
+        tone: TONES[index % TONES.length] ?? "#1d6fb8",
         icon: index === 0 ? <Activity className="h-4 w-4" /> : index === 1 ? <Sigma className="h-4 w-4" /> : <TrendingUp className="h-4 w-4" />,
       };
     });
@@ -309,7 +309,7 @@ function buildKpis(rows: GenericRow[], rowCount: number, numericKeys: string[]):
       label: "Resultats",
       value: rowCount.toLocaleString("fr-FR"),
       hint: "Nombre de lignes pertinentes retournees",
-      tone: "#06b6d4",
+      tone: "#1d6fb8",
       icon: <Hash className="h-4 w-4" />,
     },
     ...(firstSeries
@@ -318,21 +318,21 @@ function buildKpis(rows: GenericRow[], rowCount: number, numericKeys: string[]):
             label: `Total ${displaySeries}`,
             value: formatMetricValue(total, unit),
             hint: "Somme sur les lignes visibles",
-            tone: "#10b981",
+            tone: "#2e90d9",
             icon: <Sigma className="h-4 w-4" />,
           },
           {
             label: `Moyenne ${displaySeries}`,
             value: formatMetricValue(average, unit),
             hint: "Moyenne de l'echantillon visible",
-            tone: "#8b5cf6",
+            tone: "#93cbf2",
             icon: <TrendingUp className="h-4 w-4" />,
           },
           {
             label: `Pic ${displaySeries}`,
             value: formatMetricValue(peak, unit),
             hint: "Valeur maximale observee",
-            tone: "#f59e0b",
+            tone: "#5fb0e8",
             icon: <BarChart3 className="h-4 w-4" />,
           },
         ]
@@ -504,7 +504,7 @@ export default function QueryInsights({
                         type="monotone"
                         dataKey={key}
                         name={prettifyKey(key)}
-                        stroke={TONES[index % TONES.length] ?? "#06b6d4"}
+                        stroke={TONES[index % TONES.length] ?? "#1d6fb8"}
                         strokeWidth={2.4}
                         dot={{ r: 2 }}
                       >
@@ -533,7 +533,7 @@ export default function QueryInsights({
                       }}
                     >
                       {chart.data.map((entry, index) => (
-                        <Cell key={`${entry[chart.labelKey]}-${index}`} fill={TONES[index % TONES.length] ?? "#06b6d4"} />
+                        <Cell key={`${entry[chart.labelKey]}-${index}`} fill={TONES[index % TONES.length] ?? "#1d6fb8"} />
                       ))}
                     </Pie>
                   </PieChart>
@@ -549,7 +549,7 @@ export default function QueryInsights({
                         key={key}
                         dataKey={key}
                         name={chart.kind === "histogram" ? "Effectif" : prettifyKey(key)}
-                        fill={TONES[index % TONES.length] ?? "#06b6d4"}
+                        fill={TONES[index % TONES.length] ?? "#1d6fb8"}
                         radius={[8, 8, 0, 0]}
                       >
                         <LabelList dataKey={key} position="top" formatter={buildChartLabel} className="fill-slate-300 text-[10px]" />

@@ -46,7 +46,7 @@ export default function ChartTooltip({
 }
 
 export const CHART_GRID_PROPS = {
-  stroke: "#1e293b",
+  stroke: "#10304f",
   strokeDasharray: "3 3",
   opacity: 0.5,
 } as const;

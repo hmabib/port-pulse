@@ -9,7 +9,10 @@ import {
 
 export const runtime = "nodejs";
 
-const MODEL = "gpt-4o-mini";
+/* Routage GPT-5.6 par rôle : Luna absorbe la classification courte et
+   fréquente ; Terra traite le SQL et l'analyse métier, où la fiabilité prime. */
+const FAST_MODEL = "gpt-5.6-luna";
+const ANALYSIS_MODEL = "gpt-5.6-terra";
 
 function getOpenAIClient() {
   const apiKey = process.env.OPENAI_API_KEY;
@@ -228,9 +231,10 @@ async function classify(
 ): Promise<Classification> {
   try {
     const response = await openai.chat.completions.create({
-      model: MODEL,
+      model: FAST_MODEL,
+      reasoning_effort: "none",
       temperature: 0,
-      max_tokens: 300,
+      max_completion_tokens: 300,
       response_format: { type: "json_object" },
       messages: [
         {
@@ -301,9 +305,10 @@ et les agrégations. Ne répète pas la même erreur.`
     : "";
 
   const response = await openai.chat.completions.create({
-    model: MODEL,
+    model: ANALYSIS_MODEL,
+    reasoning_effort: "none",
     temperature: 0,
-    max_tokens: 900,
+    max_completion_tokens: 900,
     messages: [
       {
         role: "system",
@@ -499,9 +504,10 @@ export async function POST(req: NextRequest) {
     /* ── 2. Questions non calculatoires ── */
     if (intent === "DEFINITION" || intent === "NAVIGATION") {
       const response = await openai.chat.completions.create({
-        model: MODEL,
+        model: ANALYSIS_MODEL,
+        reasoning_effort: "none",
         temperature: 0.3,
-        max_tokens: 900,
+        max_completion_tokens: 900,
         messages: [
           {
             role: "system",
@@ -577,9 +583,10 @@ ${describeContext(context)}`,
     let answer = "";
     try {
       const interpretation = await openai.chat.completions.create({
-        model: MODEL,
+        model: ANALYSIS_MODEL,
+        reasoning_effort: "none",
         temperature: 0.3,
-        max_tokens: 1500,
+        max_completion_tokens: 1500,
         messages: [
           {
             role: "system",

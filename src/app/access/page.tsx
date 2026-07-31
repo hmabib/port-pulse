@@ -1,4 +1,5 @@
-import { Anchor, LockKeyhole } from "lucide-react";
+import Image from "next/image";
+import { LockKeyhole } from "lucide-react";
 import { sanitizeReturnPath } from "@/lib/access-control";
 
 type AccessPageProps = {
@@ -16,18 +17,20 @@ export default async function AccessPage({ searchParams }: AccessPageProps) {
   return (
     <main className="flex min-h-screen items-center justify-center px-5 py-12">
       <section className="w-full max-w-md rounded-[var(--radius-card)] border border-[var(--card-border)] bg-[var(--card-bg)] p-8 shadow-2xl backdrop-blur-xl">
-        <div className="mb-8 flex items-center gap-3">
-          <span className="flex size-11 items-center justify-center rounded-xl bg-[var(--badge-bg)] text-[var(--pak-400)]">
-            <Anchor aria-hidden="true" size={24} />
-          </span>
-          <div>
-            <p className="text-[var(--text-label)] font-semibold uppercase tracking-[var(--tracking-label)] text-[var(--text-muted)]">
-              KCT
-            </p>
-            <h1 className="text-[var(--text-title)] font-semibold text-[var(--text-primary)]">
-              Port Pulse
-            </h1>
+        <div className="mb-8">
+          <div className="rounded-xl bg-white px-4 py-3">
+            <Image
+              src="/kct-logo.jpg"
+              alt="Kribi Conteneurs Terminal Cameroun"
+              width={320}
+              height={46}
+              priority
+              className="h-auto w-full"
+            />
           </div>
+          <p className="mt-3 text-center text-[var(--text-label)] font-semibold uppercase tracking-[var(--tracking-label)] text-[var(--text-muted)]">
+            Port Pulse · Cockpit opérationnel
+          </p>
         </div>
 
         <div className="mb-6">

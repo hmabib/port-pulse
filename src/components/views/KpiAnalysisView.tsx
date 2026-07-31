@@ -1,10 +1,11 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React from "react";
+import TimeSeriesExplorer from "@/components/ui/TimeSeriesExplorer";
 
 type GenericRow = Record<string, unknown>;
 
 export default function KpiAnalysisView({ ctx }: { ctx: any }) {
-  const { Activity, AnalyseSubTab, Area, AreaChart, Bar, BarChart, CHART_AXIS_PROPS, CHART_GRID_PROPS, CalendarRange, CartesianGrid, Cell, ChartTooltip, Container, DataTable, Gauge, INTELLIGENCE_THRESHOLDS, InsightCard, Legend, Line, LineChart, MetricCard, ResponsiveContainer, SectionCard, Tooltip, Truck, XAxis, YAxis, analyseSubTab, annualAnalysis, buildVisibleChartLabel, dailyAnalysis, formatDateLabel, formatInteger, formatMinutes, formatPercent, formatShortDate, gateTttTrend, monthlyAnalyses, occupancyTrend, selectedCumulYear, setAnalyseSubTab, toNumber, yearScopedDailyData } = ctx;
+  const { Activity, AnalyseSubTab, Area, AreaChart, Bar, BarChart, CHART_AXIS_PROPS, CHART_GRID_PROPS, CalendarRange, CartesianGrid, Cell, ChartTooltip, Container, DataTable, Gauge, INTELLIGENCE_THRESHOLDS, InsightCard, Legend, MetricCard, ResponsiveContainer, SectionCard, Tooltip, Truck, XAxis, YAxis, analyseSubTab, annualAnalysis, buildVisibleChartLabel, dailyAnalysis, formatInteger, formatMinutes, formatPercent, formatShortDate, gateTttTrend, monthlyAnalyses, occupancyTrend, selectedCumulYear, setAnalyseSubTab, toNumber, yearScopedDailyData } = ctx;
   return (
             <>
               <div className="flex gap-2">
@@ -24,26 +25,18 @@ export default function KpiAnalysisView({ ctx }: { ctx: any }) {
                   </div>
 
                   <div className="grid gap-5 xl:grid-cols-[1.2fr_0.8fr]">
-                    <SectionCard title="Performance vs forecast" subtitle={`Evolution realise vs budget depuis le 1er janvier ${selectedCumulYear}`}>
-                      <div className="h-[360px] min-w-0">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <AreaChart data={yearScopedDailyData}>
-                            <defs>
-                              <linearGradient id="gradAnalyseReal" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="5%" stopColor="#2e90d9" stopOpacity={0.3} />
-                                <stop offset="95%" stopColor="#2e90d9" stopOpacity={0} />
-                              </linearGradient>
-                            </defs>
-                            <CartesianGrid {...CHART_GRID_PROPS} />
-                            <XAxis dataKey="date_rapport" {...CHART_AXIS_PROPS} tickFormatter={formatShortDate} />
-                            <YAxis {...CHART_AXIS_PROPS} />
-                            <Tooltip content={<ChartTooltip labelFormatter={formatDateLabel} valueFormatter={(v: any) => formatInteger(v)} />} />
-                            <Legend wrapperStyle={{ fontSize: 12 }} />
-                            <Area connectNulls={false} type="monotone" dataKey="total_teu" name="Realise" stroke="#2e90d9" fill="url(#gradAnalyseReal)" strokeWidth={2.5} label={buildVisibleChartLabel()} />
-                            <Area connectNulls={false} type="monotone" dataKey="total_forecast" name="Budget" stroke="#164b7e" fill="none" strokeWidth={2} strokeDasharray="6 3" label={buildVisibleChartLabel()} />
-                          </AreaChart>
-                        </ResponsiveContainer>
-                      </div>
+                    <SectionCard title="Performance vs forecast" subtitle={`Exploration du réalisé et du budget ${selectedCumulYear}`}>
+                      <TimeSeriesExplorer
+                        data={yearScopedDailyData}
+                        height={360}
+                        defaultPeriod="90d"
+                        dateFormatter={formatShortDate}
+                        valueFormatter={(value) => `${formatInteger(value)} TEU`}
+                        series={[
+                          { key: "total_teu", label: "Réalisé", color: "#2e90d9" },
+                          { key: "total_forecast", label: "Budget", color: "#164b7e", dashed: true },
+                        ]}
+                      />
                     </SectionCard>
 
                     <SectionCard title="Insights du jour" subtitle={`${dailyAnalysis.insights.length} detection(s)`}>
@@ -58,46 +51,33 @@ export default function KpiAnalysisView({ ctx }: { ctx: any }) {
                   </div>
 
                   <div className="grid gap-5 xl:grid-cols-2">
-                    <SectionCard title="Taux d'occupation - Depuis le 1er janvier" subtitle="Parc et reefers sur la periode chargee">
-                      <div className="h-[300px] min-w-0">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <LineChart data={occupancyTrend}>
-                            <CartesianGrid {...CHART_GRID_PROPS} />
-                            <XAxis dataKey="date_rapport" {...CHART_AXIS_PROPS} tickFormatter={formatShortDate} />
-                            <YAxis {...CHART_AXIS_PROPS} domain={[0, 120]} />
-                            <Tooltip content={<ChartTooltip labelFormatter={formatDateLabel} valueFormatter={(v: any) => formatPercent(v)} />} />
-                            <Legend wrapperStyle={{ fontSize: 12 }} />
-                            <Line connectNulls={false} type="monotone" dataKey="taux_occupation_parc" name="Parc %" stroke="#93cbf2" strokeWidth={2.5} dot={{ r: 2 }} label={buildVisibleChartLabel()} />
-                            <Line connectNulls={false} type="monotone" dataKey="taux_occupation_reefers" name="Reefers %" stroke="#5fb0e8" strokeWidth={2.5} dot={{ r: 2 }} label={buildVisibleChartLabel()} />
-                            <Line
-connectNulls={false}                               type="monotone"
-                              dataKey={() => INTELLIGENCE_THRESHOLDS.parkCriticalPct}
-                              name="Seuil critique"
-                              stroke="#f87171"
-                              strokeWidth={1}
-                              strokeDasharray="4 4"
-                              dot={false}
-                            />
-                          </LineChart>
-                        </ResponsiveContainer>
-                      </div>
+                    <SectionCard title="Taux d'occupation" subtitle="Parc et reefers — dépassements supérieurs à 100 % conservés">
+                      <TimeSeriesExplorer
+                        data={occupancyTrend}
+                        height={320}
+                        defaultPeriod="90d"
+                        dateFormatter={formatShortDate}
+                        valueFormatter={(value) => formatPercent(value)}
+                        domains={{ left: [0, "auto"] }}
+                        series={[
+                          { key: "taux_occupation_parc", label: "Parc %", color: "#93cbf2" },
+                          { key: "taux_occupation_reefers", label: "Reefers %", color: "#5fb0e8" },
+                        ]}
+                      />
                     </SectionCard>
 
-                    <SectionCard title="Productivite - Depuis le 1er janvier" subtitle="Prod. nette et TTT sur la periode chargee">
-                      <div className="h-[300px] min-w-0">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <LineChart data={gateTttTrend}>
-                            <CartesianGrid {...CHART_GRID_PROPS} />
-                            <XAxis dataKey="date_rapport" {...CHART_AXIS_PROPS} tickFormatter={formatShortDate} />
-                            <YAxis yAxisId="left" {...CHART_AXIS_PROPS} />
-                            <YAxis yAxisId="right" orientation="right" {...CHART_AXIS_PROPS} />
-                            <Tooltip content={<ChartTooltip labelFormatter={formatDateLabel} valueFormatter={(v: any, name: any) => String(name).includes("TTT") ? formatMinutes(v) : `${toNumber(v).toFixed(1)} mvts/h`} />} />
-                            <Legend wrapperStyle={{ fontSize: 12 }} />
-                            <Line connectNulls={false} yAxisId="left" type="monotone" dataKey="ttt_duree_minutes" name="TTT" stroke="#5fb0e8" strokeWidth={2.5} dot={{ r: 2 }} label={buildVisibleChartLabel()} />
-                            <Line connectNulls={false} yAxisId="right" type="monotone" dataKey="ttt_total_camions" name="Camions" stroke="#164b7e" strokeWidth={2.2} dot={{ r: 2 }} label={buildVisibleChartLabel()} />
-                          </LineChart>
-                        </ResponsiveContainer>
-                      </div>
+                    <SectionCard title="Fluidité gate" subtitle="TTT et camions sur la période sélectionnée">
+                      <TimeSeriesExplorer
+                        data={gateTttTrend}
+                        height={320}
+                        defaultPeriod="90d"
+                        dateFormatter={formatShortDate}
+                        valueFormatter={(value, key) => key === "ttt_duree_minutes" ? formatMinutes(value) : `${formatInteger(value)} camions`}
+                        series={[
+                          { key: "ttt_duree_minutes", label: "TTT", color: "#5fb0e8" },
+                          { key: "ttt_total_camions", label: "Camions", color: "#164b7e", axis: "right" },
+                        ]}
+                      />
                     </SectionCard>
                   </div>
                 </>

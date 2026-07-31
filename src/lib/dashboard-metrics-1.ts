@@ -221,6 +221,10 @@ export function buildVisibleChartLabel(
     formatter?: (value: unknown) => string;
   },
 ) {
+  /* Une courbe journalière peut porter plusieurs centaines de points.
+     Sans position explicite, la valeur reste dans l'infobulle afin de ne
+     pas masquer le tracé. Les barres, peu nombreuses, gardent leur libellé. */
+  if (!options?.position) return false;
   return {
     fill: options?.color ?? "#7396b5",
     fontSize: 10,

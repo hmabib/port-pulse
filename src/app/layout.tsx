@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { IBM_Plex_Mono, Manrope } from "next/font/google";
-import { ThemeProvider } from "@/lib/theme";
+import { ThemeProvider, THEME_INIT_SCRIPT } from "@/lib/theme";
 import "./globals.css";
 
 const manrope = Manrope({
@@ -26,7 +26,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="fr" className={`${manrope.variable} ${plexMono.variable} h-full antialiased`}>
+    <html lang="fr" className={`${manrope.variable} ${plexMono.variable} h-full antialiased`} suppressHydrationWarning>
+      <head>
+        {/* Pose le thème avant la première peinture : ni flash, ni écart d'hydratation. */}
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+      </head>
       <body className="min-h-full">
         <ThemeProvider>{children}</ThemeProvider>
       </body>

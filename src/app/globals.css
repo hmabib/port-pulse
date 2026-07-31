@@ -1,75 +1,151 @@
 @import "tailwindcss";
 
+/* ═══════════════════════════════════════════════════════════════════
+   PORT PULSE — DESIGN SYSTEM PAKAZURE
+   Palette monochrome bleue. Les séries de graphiques se différencient
+   par la valeur (clair / foncé), jamais par la teinte.
+
+   RÈGLE ABSOLUE : les couleurs sémantiques (critique, alerte, conforme)
+   n'apparaissent jamais comme couleur de série. Un écran sans anomalie
+   est entièrement bleu et gris — c'est ce qui rend une tache rouge
+   lisible instantanément à trois mètres.
+   ═══════════════════════════════════════════════════════════════════ */
+
 @layer theme {
   :root {
-    /* ── Dark theme (default) ── */
-    --background: #080f1a;
-    --foreground: #eef6ff;
-    --surface: #0c1525;
-    --surface-muted: #111b2e;
-    --surface-hover: rgba(255, 255, 255, 0.04);
-    --line: rgba(148, 163, 184, 0.08);
-    --text-primary: #f1f5f9;
-    --text-secondary: #94a3b8;
-    --text-muted: #64748b;
-    --cyan: #06b6d4;
-    --emerald: #10b981;
-    --amber: #f59e0b;
-    --violet: #8b5cf6;
-    --blue: #3b82f6;
-    --rose: #f43f5e;
-    --card-bg: rgba(15, 23, 42, 0.55);
-    --card-border: rgba(255, 255, 255, 0.06);
-    --input-bg: rgba(15, 23, 42, 0.8);
-    --badge-bg: rgba(6, 182, 212, 0.1);
-    --badge-text: #67e8f9;
-    --tooltip-bg: rgba(2, 6, 23, 0.95);
-    --scrollbar-thumb: rgba(71, 85, 105, 0.4);
-    --scrollbar-hover: rgba(71, 85, 105, 0.65);
-    --insight-info-bg: rgba(59, 130, 246, 0.08);
-    --insight-info-border: rgba(59, 130, 246, 0.2);
-    --insight-warning-bg: rgba(245, 158, 11, 0.08);
-    --insight-warning-border: rgba(245, 158, 11, 0.2);
-    --insight-critical-bg: rgba(244, 63, 94, 0.08);
-    --insight-critical-border: rgba(244, 63, 94, 0.2);
-    --insight-success-bg: rgba(16, 185, 129, 0.08);
-    --insight-success-border: rgba(16, 185, 129, 0.2);
+    /* ── Échelle Pakazure ── */
+    --pak-950: #071426;
+    --pak-900: #0b2038;
+    --pak-800: #10304f;
+    --pak-700: #164b7e;
+    --pak-600: #1d6fb8;
+    --pak-500: #2e90d9;
+    --pak-400: #5fb0e8;
+    --pak-300: #93cbf2;
+    --pak-200: #c2e1f8;
+    --pak-100: #e4f1fb;
+
+    /* ── Séries de graphiques : ordre imposé ── */
+    --series-1: var(--pak-700);
+    --series-2: var(--pak-500);
+    --series-3: var(--pak-400);
+    --series-4: var(--pak-300);
+    --series-5: var(--pak-200);
+
+    /* ── Sémantique : alertes et écarts uniquement ── */
+    --critical: #f87171;
+    --warning: #fbbf24;
+    --success: #4ade80;
+    --neutral: #64748b;
+    /* Référence (budget, cible) : jamais une série colorée */
+    --reference: #94a3b8;
+
+    /* ── Thème sombre (défaut) ── */
+    --background: #060e1a;
+    --foreground: #eaf3fc;
+    --surface: #0b1a2c;
+    --surface-muted: #102540;
+    --surface-hover: rgba(147, 203, 242, 0.06);
+    --line: rgba(147, 203, 242, 0.1);
+    --text-primary: #eaf3fc;
+    --text-secondary: #a8c6e0;
+    --text-muted: #7396b5;
+
+    /* Alias historiques, remappés sur l'échelle bleue.
+       Conservés pour ne pas casser les usages existants. */
+    --cyan: #4aa3e0;
+    --blue: #2e90d9;
+    --emerald: #5fb0e8;
+    --violet: #93cbf2;
+    --amber: #7fbfec;
+    --rose: #f87171;
+
+    --card-bg: rgba(11, 26, 44, 0.62);
+    --card-border: rgba(147, 203, 242, 0.1);
+    --input-bg: rgba(7, 20, 38, 0.85);
+    --input-border: rgba(147, 203, 242, 0.16);
+    --badge-bg: rgba(46, 144, 217, 0.14);
+    --badge-text: #93cbf2;
+    --tooltip-bg: rgba(6, 14, 26, 0.97);
+    --tooltip-border: rgba(147, 203, 242, 0.18);
+    --scrollbar-thumb: rgba(147, 203, 242, 0.22);
+    --scrollbar-hover: rgba(147, 203, 242, 0.4);
+
+    --insight-info-bg: rgba(46, 144, 217, 0.1);
+    --insight-info-border: rgba(46, 144, 217, 0.28);
+    --insight-warning-bg: rgba(251, 191, 36, 0.1);
+    --insight-warning-border: rgba(251, 191, 36, 0.3);
+    --insight-critical-bg: rgba(248, 113, 113, 0.11);
+    --insight-critical-border: rgba(248, 113, 113, 0.32);
+    --insight-success-bg: rgba(74, 222, 128, 0.09);
+    --insight-success-border: rgba(74, 222, 128, 0.28);
+
+    /* ── Échelle typographique : 6 crans, plus aucune valeur arbitraire ── */
+    --text-display: 2rem;      /* 32px — chiffre de tête */
+    --text-metric: 1.625rem;   /* 26px — valeur de KPI */
+    --text-title: 1.1875rem;   /* 19px — titre de section */
+    --text-body: 0.9375rem;    /* 15px — texte courant */
+    --text-table: 0.84375rem;  /* 13.5px — cellules et axes */
+    --text-label: 0.75rem;     /* 12px — plancher de lisibilité */
+
+    --leading-tight: 1.15;
+    --leading-snug: 1.35;
+    --leading-normal: 1.6;
+    --tracking-label: 0.08em;
+
+    --radius-card: 14px;
+    --radius-control: 10px;
   }
 
   [data-theme="light"] {
-    --background: #f0f4f8;
-    --foreground: #0f172a;
+    --background: #f4f9fd;
+    --foreground: #0b2038;
     --surface: #ffffff;
-    --surface-muted: #e2e8f0;
-    --surface-hover: rgba(15, 23, 42, 0.05);
-    --line: rgba(51, 65, 85, 0.15);
-    --text-primary: #0f172a;
-    --text-secondary: #1e293b;
-    --text-muted: #475569;
-    --cyan: #0e7490;
-    --emerald: #047857;
-    --amber: #b45309;
-    --violet: #6d28d9;
-    --blue: #1d4ed8;
-    --rose: #be123c;
+    --surface-muted: #e8f2fa;
+    --surface-hover: rgba(22, 75, 126, 0.05);
+    --line: rgba(22, 75, 126, 0.14);
+    --text-primary: #0b2038;
+    --text-secondary: #24466b;
+    --text-muted: #55779a;
+
+    --cyan: #1565a8;
+    --blue: #1d6fb8;
+    --emerald: #164b7e;
+    --violet: #2e90d9;
+    --amber: #3f7fb8;
+    --rose: #b4232a;
+
+    --critical: #b4232a;
+    --warning: #b26a00;
+    --success: #1e7a4c;
+    --neutral: #55779a;
+    --reference: #7b96b0;
+
+    --series-1: #164b7e;
+    --series-2: #1d6fb8;
+    --series-3: #2e90d9;
+    --series-4: #5fb0e8;
+    --series-5: #93cbf2;
+
     --card-bg: #ffffff;
-    --card-border: rgba(51, 65, 85, 0.16);
+    --card-border: rgba(22, 75, 126, 0.16);
     --input-bg: #ffffff;
-    --input-border: rgba(51, 65, 85, 0.22);
-    --badge-bg: rgba(14, 116, 144, 0.1);
-    --badge-text: #0e7490;
+    --input-border: rgba(22, 75, 126, 0.24);
+    --badge-bg: rgba(29, 111, 184, 0.1);
+    --badge-text: #1565a8;
     --tooltip-bg: #ffffff;
-    --tooltip-border: rgba(51, 65, 85, 0.15);
-    --scrollbar-thumb: rgba(100, 116, 139, 0.35);
-    --scrollbar-hover: rgba(100, 116, 139, 0.55);
-    --insight-info-bg: rgba(29, 78, 216, 0.07);
-    --insight-info-border: rgba(29, 78, 216, 0.2);
-    --insight-warning-bg: rgba(180, 83, 9, 0.07);
-    --insight-warning-border: rgba(180, 83, 9, 0.2);
-    --insight-critical-bg: rgba(190, 18, 60, 0.07);
-    --insight-critical-border: rgba(190, 18, 60, 0.2);
-    --insight-success-bg: rgba(4, 120, 87, 0.07);
-    --insight-success-border: rgba(4, 120, 87, 0.2);
+    --tooltip-border: rgba(22, 75, 126, 0.16);
+    --scrollbar-thumb: rgba(22, 75, 126, 0.24);
+    --scrollbar-hover: rgba(22, 75, 126, 0.42);
+
+    --insight-info-bg: rgba(29, 111, 184, 0.07);
+    --insight-info-border: rgba(29, 111, 184, 0.24);
+    --insight-warning-bg: rgba(178, 106, 0, 0.08);
+    --insight-warning-border: rgba(178, 106, 0, 0.26);
+    --insight-critical-bg: rgba(180, 35, 42, 0.07);
+    --insight-critical-border: rgba(180, 35, 42, 0.26);
+    --insight-success-bg: rgba(30, 122, 76, 0.07);
+    --insight-success-border: rgba(30, 122, 76, 0.24);
   }
 }
 
@@ -80,6 +156,7 @@
 
   html {
     color-scheme: dark;
+    transition: color-scheme 200ms ease;
   }
 
   html[data-theme="light"] {
@@ -91,55 +168,25 @@
     background: var(--background);
     color: var(--foreground);
     font-family: var(--font-manrope), system-ui, sans-serif;
+    font-size: var(--text-body);
+    line-height: var(--leading-normal);
+    /* Alignement vertical des colonnes de chiffres sur toute la plateforme. */
+    font-variant-numeric: tabular-nums;
+    -webkit-font-smoothing: antialiased;
   }
 
-  /* Dark mode gradient background */
   html:not([data-theme="light"]) body {
     background:
-      radial-gradient(ellipse 60% 50% at 10% 0%, rgba(16, 185, 129, 0.07), transparent),
-      radial-gradient(ellipse 50% 40% at 85% 0%, rgba(59, 130, 246, 0.09), transparent),
-      linear-gradient(180deg, #060e19 0%, #080f1a 40%, #0a1120 100%);
+      radial-gradient(ellipse 60% 50% at 12% 0%, rgba(29, 111, 184, 0.1), transparent),
+      radial-gradient(ellipse 50% 40% at 88% 0%, rgba(46, 144, 217, 0.08), transparent),
+      linear-gradient(180deg, #050c17 0%, #060e1a 45%, #081324 100%);
   }
 
-  /* Light mode subtle gradient */
   html[data-theme="light"] body {
     background:
-      radial-gradient(ellipse 60% 50% at 10% 0%, rgba(4, 120, 87, 0.04), transparent),
-      radial-gradient(ellipse 50% 40% at 85% 0%, rgba(29, 78, 216, 0.05), transparent),
-      #f1f5f9;
-  }
-
-  /* Light mode typography adjustments */
-  html[data-theme="light"] .font-mono {
-    color: var(--text-primary);
-  }
-
-  /* Light mode specific overrides for Recharts */
-  html[data-theme="light"] .recharts-cartesian-grid line {
-    stroke: rgba(100, 116, 139, 0.12);
-  }
-
-  html[data-theme="light"] .recharts-cartesian-axis-line {
-    stroke: rgba(100, 116, 139, 0.25);
-  }
-
-  /* Light mode card shadows */
-  html[data-theme="light"] .shadow-xl {
-    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.06);
-  }
-
-  /* Light mode Recharts axis tick text */
-  html[data-theme="light"] .recharts-cartesian-axis-tick-value {
-    fill: #334155 !important;
-  }
-
-  html[data-theme="light"] .recharts-legend-item-text {
-    color: #1e293b !important;
-  }
-
-  /* Light mode tooltip border */
-  html[data-theme="light"] .recharts-tooltip-wrapper {
-    filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.1));
+      radial-gradient(ellipse 60% 50% at 12% 0%, rgba(29, 111, 184, 0.05), transparent),
+      radial-gradient(ellipse 50% 40% at 88% 0%, rgba(46, 144, 217, 0.05), transparent),
+      #f4f9fd;
   }
 
   code,
@@ -150,16 +197,16 @@
   }
 
   ::selection {
-    background: rgba(59, 130, 246, 0.25);
+    background: rgba(46, 144, 217, 0.28);
     color: #fff;
   }
 
   html[data-theme="light"] ::selection {
-    background: rgba(59, 130, 246, 0.2);
-    color: #0f172a;
+    background: rgba(29, 111, 184, 0.18);
+    color: #0b2038;
   }
 
-  /* Minimal scrollbars */
+  /* ── Barres de défilement discrètes ── */
   *::-webkit-scrollbar {
     width: 6px;
     height: 6px;
@@ -177,72 +224,159 @@
   *::-webkit-scrollbar-thumb:hover {
     background: var(--scrollbar-hover);
   }
+}
 
-  /* Recharts overrides */
-  .recharts-legend-item-text {
-    color: var(--text-secondary) !important;
-    font-size: 12px !important;
+/* ═══════════════════════════════════════════════════════════════════
+   RECHARTS — thème piloté par les tokens, sans surcharge par thème.
+   Les correctifs `!important` par mode ne sont plus nécessaires : les
+   couleurs ne sont plus figées dans le balisage.
+   ═══════════════════════════════════════════════════════════════════ */
+
+.recharts-legend-item-text {
+  color: var(--text-secondary) !important;
+  font-size: var(--text-label) !important;
+}
+
+.recharts-cartesian-axis-tick-value {
+  font-size: var(--text-label);
+  fill: var(--text-muted);
+}
+
+.recharts-cartesian-grid line {
+  stroke: var(--line);
+}
+
+.recharts-cartesian-axis-line {
+  stroke: var(--line);
+}
+
+.recharts-tooltip-wrapper {
+  filter: drop-shadow(0 6px 18px rgba(6, 14, 26, 0.28));
+}
+
+/* Étiquettes de valeur affichées sur les graphiques. */
+.recharts-label-list text,
+.recharts-text.recharts-label {
+  fill: var(--text-secondary);
+  font-size: var(--text-label);
+  font-weight: 600;
+}
+
+/* Ligne de référence (budget, cible) : toujours en tirets neutres. */
+.recharts-reference-line line {
+  stroke: var(--reference);
+  stroke-dasharray: 5 4;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   COMPOSANTS
+   ═══════════════════════════════════════════════════════════════════ */
+
+.animate-in {
+  animation: fadeIn 200ms ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.insight-card {
+  border-radius: 12px;
+  padding: 12px 16px;
+  border-width: 1px;
+  transition: all 150ms ease;
+}
+
+.insight-info {
+  background: var(--insight-info-bg);
+  border-color: var(--insight-info-border);
+}
+
+.insight-warning {
+  background: var(--insight-warning-bg);
+  border-color: var(--insight-warning-border);
+}
+
+.insight-critical {
+  background: var(--insight-critical-bg);
+  border-color: var(--insight-critical-border);
+}
+
+.insight-success {
+  background: var(--insight-success-bg);
+  border-color: var(--insight-success-border);
+}
+
+body,
+.theme-transition {
+  transition:
+    background-color 300ms ease,
+    color 200ms ease,
+    border-color 200ms ease;
+}
+
+/* ── Signalement de qualité de donnée ──
+   Une valeur suspecte est affichée, jamais masquée : elle porte une
+   marque discrète qui invite à la vérifier. */
+.data-suspect {
+  border-bottom: 1px dotted var(--warning);
+  cursor: help;
+}
+
+.data-missing {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+/* Bande signalant une interruption de collecte sur un graphique. */
+.data-gap {
+  fill: var(--surface-muted);
+  opacity: 0.55;
+}
+
+/* ── Typographie utilitaire ── */
+.t-display {
+  font-size: var(--text-display);
+  line-height: var(--leading-tight);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.t-metric {
+  font-size: var(--text-metric);
+  line-height: var(--leading-tight);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.t-title {
+  font-size: var(--text-title);
+  line-height: var(--leading-snug);
+  font-weight: 700;
+}
+
+.t-label {
+  font-size: var(--text-label);
+  font-weight: 700;
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+@media print {
+  body {
+    background: #fff;
+    color: #000;
   }
 
-  .recharts-cartesian-axis-tick-value {
-    font-size: 11px;
-    fill: var(--text-muted);
-  }
-
-  /* Smooth transitions */
-  .animate-in {
-    animation: fadeIn 200ms ease-out;
-  }
-
-  @keyframes fadeIn {
-    from {
-      opacity: 0;
-      transform: translateY(-4px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
-
-  /* Insight cards */
-  .insight-card {
-    border-radius: 12px;
-    padding: 12px 16px;
-    border-width: 1px;
-    transition: all 150ms ease;
-  }
-
-  .insight-info {
-    background: var(--insight-info-bg);
-    border-color: var(--insight-info-border);
-  }
-
-  .insight-warning {
-    background: var(--insight-warning-bg);
-    border-color: var(--insight-warning-border);
-  }
-
-  .insight-critical {
-    background: var(--insight-critical-bg);
-    border-color: var(--insight-critical-border);
-  }
-
-  .insight-success {
-    background: var(--insight-success-bg);
-    border-color: var(--insight-success-border);
-  }
-
-  /* Theme transition */
-  html {
-    transition: color-scheme 200ms ease;
-  }
-
-  body,
-  .theme-transition {
-    transition:
-      background-color 300ms ease,
-      color 200ms ease,
-      border-color 200ms ease;
+  .no-print {
+    display: none !important;
   }
 }

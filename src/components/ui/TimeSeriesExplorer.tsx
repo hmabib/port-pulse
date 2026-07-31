@@ -24,6 +24,7 @@ import {
   ZoomIn,
   ZoomOut,
 } from "lucide-react";
+import { normalizeDateOnly } from "@/lib/data-quality";
 import { CHART_AXIS_PROPS, CHART_GRID_PROPS } from "./ChartTooltip";
 
 type Row = Record<string, unknown>;
@@ -62,8 +63,7 @@ const PERIOD_OPTIONS: Array<{ value: Period; label: string }> = [
 ];
 
 function dateParts(value: unknown) {
-  const raw = String(value ?? "");
-  const normalized = raw.split("·")[0]?.slice(0, 10) ?? "";
+  const normalized = normalizeDateOnly(value);
   const timestamp = Date.parse(`${normalized}T00:00:00Z`);
   return {
     normalized,

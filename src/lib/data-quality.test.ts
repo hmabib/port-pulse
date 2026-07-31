@@ -2,10 +2,17 @@ import { describe, expect, it } from "vitest";
 import {
   decumulateMonthlyVolumes,
   dedupeByReportDate,
+  normalizeDateOnly,
   parseBulletinTimestamp,
   safePercent,
   safeRatio,
 } from "./data-quality";
+
+describe("normalizeDateOnly", () => {
+  it("normalise les dates sérialisées par React", () => {
+    expect(normalizeDateOnly("$D2026-07-30T00:00:00.000Z")).toBe("2026-07-30");
+  });
+});
 
 describe("parseBulletinTimestamp", () => {
   const validCases: Array<[string, string, string, string]> = [
